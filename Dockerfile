@@ -1,0 +1,1 @@
+'''Dockerfile to build standalone container for deployment.'''

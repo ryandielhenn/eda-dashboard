@@ -1,0 +1,1 @@
+'''FastAPI service for long-running jobs and metrics API (optional).'''

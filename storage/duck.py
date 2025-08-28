@@ -1,0 +1,1 @@
+'''DuckDB interface for storing and querying metrics.'''
