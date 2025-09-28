@@ -100,5 +100,5 @@ eda-dashboard/
 
 * Background jobs for “live” refresh (microbatch or file-watcher)
 * Thin FastAPI service for cached results and long-running tasks
-* Export reproducible reports (HTML/PDF)
+* Export reproducible reports
 
