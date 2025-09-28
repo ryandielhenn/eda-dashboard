@@ -9,6 +9,19 @@ The dashboard is designed to:
 
 ---
 
+## Interactive Visualization
+
+Interactive visualization is a core feature of the dashboard. The system uses [Streamlit](https://streamlit.io/) to provide a responsive web-based interface and will integrate Plotly for richer, interactive charts.  
+
+Planned capabilities include:  
+- **Exploration**: Upload datasets and interactively view tables, feature distributions, and correlations with adjustable parameters and filters.  
+- **Distributions**: Histograms, KDE plots, and bar charts with interactive zoom and pan.  
+- **Correlation Heatmaps**: Hoverable heatmaps and pair plots for exploring feature relationships.  
+- **Fairness & Drift**: Dynamic selection of reference vs. current datasets and sensitive attributes, with metrics and plots updated in real time.  
+- **Extensibility**: Designed to support advanced charting features such as tooltips, drill-downs, and export options.  
+
+---
+
 ## Repository Structure
 
 ```text
@@ -56,8 +69,10 @@ eda-dashboard/
 ├─ Makefile                  # Shortcuts for setup, run, lint, test
 ├─ pyproject.toml            # Project dependencies (or requirements.txt)
 └─ README.md                 # Project overview (this file)
+````
 
-```
+---
+
 ## Architecture Diagram
 
 ```text
@@ -67,16 +82,23 @@ eda-dashboard/
  │  sensors)     │     │  storage)   │     │  metrics)   │     │ Fairness checks  │     │ Visuals       │
  └───────────────┘     └─────────────┘     └─────────────┘     └──────────────────┘     └───────────────┘
 ```
+
+---
+
 ## Roadmap
 
 ### MVP (Batch-first)
-- Upload dataset (CSV/Parquet)  
-- Automated profiling (summary stats, distributions, correlations)  
-- Bias/fairness checks with [Evidently](https://github.com/evidentlyai/evidently) & [Fairlearn](https://github.com/fairlearn/fairlearn)  
-- Store metrics in DuckDB  
-- Interactive Streamlit dashboard with charts and reports  
+
+* Upload dataset (CSV/Parquet)
+* Automated profiling (summary stats, distributions, correlations)
+* Interactive visualizations (via Streamlit + Plotly)
+* Bias/fairness checks with [Evidently](https://github.com/evidentlyai/evidently) & [Fairlearn](https://github.com/fairlearn/fairlearn)
+* Store metrics in DuckDB
+* Streamlit dashboard with charts and reports
 
 ### Stretch Goals
-- Background jobs for “live” refresh (microbatch or file-watcher)  
-- Thin FastAPI service for cached results and long-running tasks  
-- Export reproducible reports (HTML/PDF)  
+
+* Background jobs for “live” refresh (microbatch or file-watcher)
+* Thin FastAPI service for cached results and long-running tasks
+* Export reproducible reports (HTML/PDF)
+
