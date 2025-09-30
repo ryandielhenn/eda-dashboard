@@ -115,14 +115,18 @@ else:
     # KPIs (single source of truth)
     render_kpis_from_duckdb(tbl)
 
-    # Preview
+    # ---------- Preview ----------
+    st.markdown("##### Preview")
+    n = st.slider("Rows to preview", 10, 500, 25, key="preview_rows")
+
     try:
-        prev_cols, prev_rows = sql(f"SELECT * FROM {tbl} LIMIT 25")
+        prev_cols, prev_rows = sql(f"SELECT * FROM {tbl} LIMIT {n}")
         st.dataframe(pd.DataFrame(prev_rows, columns=prev_cols), use_container_width=True)
+        st.caption(f"Showing first {len(prev_rows)} rows")
     except Exception as e:
         st.error(f"Preview failed for `{tbl}`: {e}")
 
-    # Schema
+    # ---------- Schema ----------
     with st.expander("Schema", expanded=False):
         try:
             s_cols, s_rows = sql(f"DESCRIBE SELECT * FROM {tbl}")

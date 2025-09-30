@@ -102,3 +102,21 @@ eda-dashboard/
 * Thin FastAPI service for cached results and long-running tasks
 * Export reproducible reports
 
+### Running application and required packages
+
+#### Requirements
+
+- Python 3.10+  
+- Recommended: a virtual environment (e.g., `venv` or `conda`)
+
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run streamlit application:
+```bash
+streamlit run app/Dashboard.py
+```
