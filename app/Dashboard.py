@@ -1,5 +1,10 @@
 import streamlit as st
 from utils import inject_css
+import sys, pathlib
+ROOT = pathlib.Path(__file__).resolve().parents[1]  # repo root
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 
 st.set_page_config(page_title="EDA Dashboard", layout="wide")
 inject_css()

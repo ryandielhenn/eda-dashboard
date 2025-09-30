@@ -1,25 +1,67 @@
+# utils.py
 import streamlit as st
 import pandas as pd
 from contextlib import contextmanager
 
+def _hex_to_rgba(hex_color: str, alpha: float) -> str:
+    """Convert #RRGGBB to rgba(r,g,b,a)."""
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r},{g},{b},{alpha})"
 def inject_css():
+    import streamlit as st
     st.markdown(
         """
         <style>
-          .kpi {display:grid; grid-template-columns: repeat(4, minmax(140px,1fr)); gap:12px; margin-top:8px;}
-          .kpi .card {background:#fff; border:1px solid #eee; border-radius:16px; padding:14px 16px;
-                      box-shadow:0 1px 3px rgba(0,0,0,0.04);}
-          .kpi .label {font-size:12px; color:#6b7280; margin-bottom:4px;}
-          .kpi .value {font-weight:700; font-size:22px;}
+          :root {
+            --kpi-bg: #F0F2F6;
+            --kpi-text: #31333F;
+          }
+          @media (prefers-color-scheme: dark) {
+            :root {
+              --kpi-bg: #262730;
+              --kpi-text: #FAFAFA;
+            }
+          }
+
+          .kpi {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin: 8px 0 16px;
+          }
+          .kpi .card {
+            background: var(--kpi-bg);
+            color: var(--kpi-text);
+            border: 1px solid var(--kpi-border);
+            border-radius: 14px;
+            padding: 12px 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.06);
+          }
+          .kpi .label {
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+            color: var(--kpi-text);
+            opacity: .75;
+          }
+          .kpi .value {
+            font-weight: 700;
+            font-size: 1.35rem;
+            line-height: 1.2;
+            color: var(--kpi-text);
+          }
         </style>
         """,
         unsafe_allow_html=True,
     )
-
 def kpi_grid(items: dict[str, str | int | float]):
-    st.markdown('<div class="kpi">' + "".join(
-        [f'<div class="card"><div class="label">{k}</div><div class="value">{v}</div></div>' for k, v in items.items()]
-    ) + '</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="kpi">' + "".join(
+            f'<div class="card"><div class="label">{k}</div><div class="value">{v}</div></div>'
+            for k, v in items.items()
+        ) + '</div>',
+        unsafe_allow_html=True,
+    )
 
 @st.cache_data(show_spinner=False)
 def load_parquet(path: str) -> pd.DataFrame:
@@ -29,3 +71,4 @@ def load_parquet(path: str) -> pd.DataFrame:
 def spinner(msg: str):
     with st.spinner(msg):
         yield
+
