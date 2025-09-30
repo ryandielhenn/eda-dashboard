@@ -62,28 +62,68 @@ if flash:
     st.success(flash)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Upload → save parquet → ingest into DuckDB
+# Upload → (CSV or ZIP→CSV) → save parquet → ingest into DuckDB
 # Use a NONCE in the uploader key so it resets after each ingest
 # ──────────────────────────────────────────────────────────────────────────────
 nonce = st.session_state.get("uploader_nonce", 0)
-uploaded = st.file_uploader("Upload CSV", type=["csv"], key=f"csv_upload_{nonce}")
-if uploaded is not None:
-    with spinner("Reading CSV…"):
-        df = pd.read_csv(uploaded, low_memory=False)
+uploaded = st.file_uploader(
+    "Upload CSV or ZIP (containing CSV)", type=["csv", "zip"], key=f"csv_upload_{nonce}"
+)
 
-    dataset_id = sanitize_id(os.path.splitext(uploaded.name)[0])
-    path = save_df_as_parquet(df, dataset_id)
-
+def _ingest_df(df: pd.DataFrame, dataset_basename: str):
+    path = save_df_as_parquet(df, dataset_basename)
     with spinner("Ingesting into DuckDB…"):
-        tbl, n_rows, n_cols = ingest_parquet(path, dataset_id=dataset_id)
-
+        tbl, n_rows, n_cols = ingest_parquet(path, dataset_id=dataset_basename)
     # Select the new dataset, bump nonce to reset uploader, flash, rerun
-    st.session_state["dataset_choice"] = dataset_id
+    st.session_state["dataset_choice"] = dataset_basename
     st.session_state["uploader_nonce"] = nonce + 1
     st.session_state["flash"] = (
-        f"Saved **{dataset_id}** → `{path}` and ingested as `{tbl}` ({n_rows}×{n_cols})."
+        f"Saved **{dataset_basename}** → `{path}` and ingested as `{tbl}` ({n_rows}×{n_cols})."
     )
     st.rerun()
+
+if uploaded is not None:
+    # Case 1: plain CSV (your original flow)
+    if uploaded.name.lower().endswith(".csv"):
+        with spinner("Reading CSV…"):
+            df = pd.read_csv(uploaded, low_memory=False)
+        dataset_id = sanitize_id(os.path.splitext(uploaded.name)[0])
+        _ingest_df(df, dataset_id)
+
+    # Case 2: ZIP containing one or more CSVs
+    elif uploaded.name.lower().endswith(".zip"):
+        import zipfile
+        with zipfile.ZipFile(uploaded, "r") as zf:
+            csv_files = [f for f in zf.namelist() if f.lower().endswith(".csv")]
+
+        if not csv_files:
+            st.error("No CSV file found inside the ZIP.")
+        else:
+            chosen_csv = st.selectbox(
+                "Select a CSV inside the ZIP", csv_files, key=f"zip_choice_{nonce}"
+            )
+
+            # Show a small preview of the selected CSV
+            with zipfile.ZipFile(uploaded, "r") as zf:
+                with zf.open(chosen_csv) as f:
+                    try:
+                        preview_df = pd.read_csv(f, nrows=25, low_memory=False)
+                        st.markdown("**Preview (first 25 rows):**")
+                        st.dataframe(preview_df, use_container_width=True)
+                    except Exception as e:
+                        st.warning(f"Preview failed: {e}")
+
+            # Add a button so ingestion only happens when user confirms
+            if st.button("Ingest selected CSV", key=f"ingest_btn_{nonce}"):
+                with zipfile.ZipFile(uploaded, "r") as zf:
+                    with zf.open(chosen_csv) as f:
+                        with spinner("Reading CSV from ZIP…"):
+                            df = pd.read_csv(f, low_memory=False)
+
+                inner_base = os.path.splitext(os.path.basename(chosen_csv))[0]
+                dataset_id = sanitize_id(inner_base)
+                _ingest_df(df, dataset_id)
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Datasets known to DuckDB (KPIs, Preview, Schema all from DuckDB)
