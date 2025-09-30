@@ -1,1 +1,63 @@
 '''Git ignore rules (venv, __pycache__, data, etc.).'''
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# --- Jupyter ---
+.ipynb_checkpoints/        # Ignore auto checkpoints
+*.nbconvert.ipynb          # Ignore exported notebooks
+.profile_default/          # Ignore Jupyter runtime profiles
+.jupyter/                  # Local Jupyter config
+
+# --- Project data ---
+data/processed/
+datasets.duckdb
+*.db
+*.sqlite
+*.parquet
+*.csv
+*.tsv
+
+# --- Logs & caches ---
+*.log
+*.out
+*.err
+*.pid
+*.gz
+*.tmp
+*.bak
+*.swp
+*.lock
+
+# --- IDEs/editors ---
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# --- OS cruft ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# --- Build / packaging ---
+dist/
+build/
+*.manifest
+*.spec
