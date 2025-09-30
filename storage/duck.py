@@ -29,7 +29,8 @@ def ingest_parquet(parquet_path: str, dataset_id: str):
     con = connect()
     tbl = table_name(dataset_id)
     con.execute(f"CREATE OR REPLACE TABLE {tbl} AS SELECT * FROM read_parquet('{parquet_path}');")
-    n_rows = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
+    row = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()
+    n_rows = row[0] if row else 0
     n_cols = len(con.execute(f"SELECT * FROM {tbl} LIMIT 0").description or [])
     con.execute("""
       INSERT INTO datasets(dataset_id, path, n_rows, n_cols, last_ingested)

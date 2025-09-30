@@ -109,7 +109,10 @@ else:
     meta = next((r for r in duck_rows_sorted if r[0] == choice), None)
     if meta:
         st.caption(f"{meta[2]}×{meta[3]} • {meta[1]} • ingested {meta[4]}")
-
+    if choice is None:
+        st.warning("No dataset selected.")
+        st.stop()
+        
     tbl = table_name(choice)
 
     # KPIs (single source of truth)
