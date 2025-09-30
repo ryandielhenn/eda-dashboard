@@ -88,7 +88,7 @@ if uploaded is not None:
 # ──────────────────────────────────────────────────────────────────────────────
 # Datasets known to DuckDB (KPIs, Preview, Schema all from DuckDB)
 # ──────────────────────────────────────────────────────────────────────────────
-st.subheader("Datasets (DuckDB)")
+st.subheader("Datasets")
 duck_rows = list_datasets()  # [(dataset_id, path, n_rows, n_cols, last_ingested), ...]
 
 if not duck_rows:
