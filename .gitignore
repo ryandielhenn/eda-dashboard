@@ -23,7 +23,8 @@ ENV/
 
 # --- Project data ---
 data/processed/
-data/duckdb/*.duckdb
+data/duckdb/
+data/raw/
 *.db
 *.sqlite
 *.parquet
