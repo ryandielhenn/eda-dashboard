@@ -40,66 +40,8 @@ Planned capabilities include:
 
 ---
 
-## Repository Structure
-
-```text
-eda-dashboard/
-├─ app/                      # Streamlit UI
-│  ├─ pages/                 # Multi-page dashboard (organized by topic)
-│  │  ├─ 01_Explore.py            # Upload datasets, preview raw data
-│  │  ├─ 02_Distributions.py      # Feature distributions, histograms, KDE plots
-│  │  ├─ 03_Correlation.py        # Correlation heatmaps, pairwise plots
-│  │  └─ 04_Fairness_&_Drift.py   # Bias detection, drift analysis reports
-│  └─ streamlit_app.py        # Main entry point for the dashboard
-│
-├─ api/                      # Thin FastAPI backend (optional, for long jobs/caching)
-│  └─ main.py
-│
-├─ analytics/                # Profiling, drift, and fairness logic
-│  ├─ profiling.py            # Summary stats, missingness, skew/kurtosis
-│  ├─ drift.py                # Drift detection (PSI, KL divergence, etc.)
-│  └─ fairness.py             # Fairness metrics (e.g., selection rate by group)
-│
-├─ storage/                  # Data and metrics persistence
-│  ├─ duck.py                 # DuckDB interface for cached metrics
-│  └─ files.py                # File helpers for Parquet/CSV IO
-│
-├─ jobs/                     # Optional background jobs
-│  ├─ microbatch.py           # Periodic profiling (simulates live updates)
-│  └─ watch.py                # File watcher to trigger profiling on new data
-│
-├─ data/                     # Local data storage
-│  ├─ raw/                    # Uploaded files
-│  ├─ processed/              # Standardized Parquet copies
-│  └─ duckdb/                 # DuckDB database file
-│
-├─ tests/                    # Unit tests
-│  ├─ test_profiling.py
-│  └─ test_storage.py
-│
-├─ notebooks/                # Prototyping in Jupyter
-│  └─ prototype.ipynb
-│
-├─ .env.example              # Example environment variables (e.g., DUCKDB_PATH)
-├─ .gitignore                # Ignore rules (venv, data, cache, etc.)
-├─ Dockerfile                # Docker image definition
-├─ docker-compose.yml        # Compose config (Streamlit + optional FastAPI)
-├─ Makefile                  # Shortcuts for setup, run, lint, test
-├─ pyproject.toml            # Project dependencies (or requirements.txt)
-└─ README.md                 # Project overview (this file)
-````
-
----
-
 ## Architecture Diagram
-
-```text
- ┌───────────────┐     ┌─────────────┐     ┌─────────────┐     ┌──────────────────┐     ┌───────────────┐
- │   Raw Data    │ ──▶ │   Parquet   │ ──▶ │   DuckDB    │ ──▶ │ Analytics Layer  │ ──▶ │ Streamlit UI  │
- │ (CSV, logs,   │     │ (columnar   │     │ (fast SQL,  │     │ Profiling, Drift │     │ Dashboards &  │
- │  sensors)     │     │  storage)   │     │  metrics)   │     │ Fairness checks  │     │ Visuals       │
- └───────────────┘     └─────────────┘     └─────────────┘     └──────────────────┘     └───────────────┘
-```
+![Architecure](diagrams/diagram.png)
 
 ---
 
