@@ -4,6 +4,8 @@ import streamlit as st
 from utils import inject_css, load_parquet
 
 import plotly.express as px
+import duckdb
+
 
 DATA_PROC = "data/processed"
 inject_css()
@@ -14,6 +16,9 @@ if not files:
     st.info("No datasets found. Go to **01 · Explore** and upload a CSV.")
     st.stop()
 
+con = duckdb.connect("data/duckdb/eda.duckdb")
+df = con.sql("SELECT * FROM datasets").df()
+st.dataframe(df, width="stretch")
 choice = st.selectbox("Dataset", files)
 df = load_parquet(os.path.join(DATA_PROC, choice))
 
