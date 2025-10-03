@@ -3,7 +3,7 @@
 A batch-first, stream-ready **Exploratory Data Analysis (EDA) dashboard** for exploring datasets, detecting bias, and generating reproducible insights.  
 
 The dashboard is designed to:  
-- Handle multiple data formats (CSV, Parquet, logs, sensors).  
+- Handle multiple data formats (CSV, CSV.GZ, Parquet, ZIP).  
 - Provide automated profiling, visualization, and fairness/drift checks.  
 - Support batch workflows for stability, with hooks for optional “live” updates in the future.  
 
