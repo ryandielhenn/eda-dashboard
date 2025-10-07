@@ -1,9 +1,15 @@
 import os
 import pandas as pd
 import streamlit as st
-from utils import inject_css
+from utils import inject_css, kpi_grid
 import plotly.express as px
 import duckdb
+from bias_metrics import (  # ADD THIS IMPORT
+    numeric_bias_metrics_duckdb,
+    categorical_bias_metrics_duckdb,
+    format_pct,
+    severity_badge
+)
 
 DATA_PROC = "data/processed"
 DUCKDB_PATH = "data/duckdb/eda.duckdb"
@@ -127,6 +133,28 @@ with tab_num:
             fig.update_traces(marker_line_width=0)
             fig.update_layout(height=380, bargap=0.05, showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
+
+            st.divider()
+            st.subheader("Bias Check")
+            
+            nm = numeric_bias_metrics_duckdb(DUCKDB_PATH, choice, col, bins)
+            # In the numeric tab, replace the metrics section with:
+            if nm is None:
+                st.info("No numeric bias metrics available.")
+            else:
+                kpi_grid({
+                    "Max-bin share": f"{format_pct(nm['max_bin_share'])} • {severity_badge(nm['bin_level'])}",
+                    "Skewness": f"{nm['skew']:.2f}",
+                    "Outlier fraction": f"{format_pct(nm['outlier_frac'])} • {severity_badge(nm['out_level'])}",
+                    "Zero share": format_pct(nm['zero_share']),
+                    "Missing": format_pct(nm['missing_share']),
+                })
+                
+                with st.expander("📊 Top bins by share", expanded=False):
+                    st.dataframe(nm["bins_table"], use_container_width=True, hide_index=True)
+                
+                st.caption("Heuristics: max-bin ≥25% (mild), ≥40% (severe); outliers ≥10% (mild), ≥20% (severe)")
+                
             
 
 with tab_cat:
@@ -144,3 +172,24 @@ with tab_cat:
         fig = px.bar(vc, x=colc, y="count")
         fig.update_layout(height=360)
         st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+        st.subheader("Bias Check")
+        
+        cm = categorical_bias_metrics_duckdb(DUCKDB_PATH, choice, colc)
+        # In the categorical tab, replace with:
+        if cm is None:
+            st.info("No categorical bias metrics available.")
+        else:
+            kpi_grid({
+                "Majority class": f"{cm['majority_label']} ({format_pct(cm['majority_share'])}) • {severity_badge(cm['maj_level'])}",
+                "Imbalance ratio": f"{cm['imbalance_ratio']:.1f}× • {severity_badge(cm['irr_level'])}",
+                "Effective #classes": f"{cm['effective_k']:.2f} / {cm['observed_k']}",
+                "Missing": format_pct(cm['missing_share']),
+                "Total rows": f"{cm['total']:,}",
+            })
+            
+            with st.expander("Top categories", expanded=False):
+                st.dataframe(cm["top_table"], use_container_width=True, hide_index=True)
+            
+            st.caption("💡 Heuristics: majority share ≥70% (mild), ≥90% (severe); imbalance ratio ≥5× (mild), ≥10× (severe)")
