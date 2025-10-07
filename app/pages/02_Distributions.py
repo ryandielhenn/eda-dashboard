@@ -12,7 +12,6 @@ inject_css()
 st.title("02 · Distributions")
 
 # Cache expensive operations
-@st.cache_data(ttl=3600)
 def get_tables():
     with duckdb.connect(DUCKDB_PATH, read_only=True) as con:
         return con.execute("SHOW TABLES").df()['name'].tolist()
@@ -116,6 +115,12 @@ with tab_num:
         if hist_data is None:
             st.warning("No data available for this column")
         else:
+            # Show box plot from sample
+            st.caption(f"Box plot based on {len(sample_data):,} sampled rows")
+            fig_box = px.box(sample_data, x=col)
+            fig_box.update_layout(height=200)
+            st.plotly_chart(fig_box, use_container_width=True)
+
             # Create histogram from aggregated data
             fig = px.bar(hist_data, x='bin_start', y='count', 
                         labels={'bin_start': col, 'count': 'Frequency'})
@@ -123,11 +128,6 @@ with tab_num:
             fig.update_layout(height=380, bargap=0.05, showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
             
-            # Show box plot from sample
-            st.caption(f"Box plot based on {len(sample_data):,} sampled rows")
-            fig_box = px.box(sample_data, y=col)
-            fig_box.update_layout(height=200)
-            st.plotly_chart(fig_box, use_container_width=True)
 
 with tab_cat:
     if not cat_cols:
