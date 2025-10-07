@@ -1,0 +1,28 @@
+* [33m76d4bd4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m big-datasets-working-for-distributions
+* [33mc928906[m Update README.md
+* [33m9c79d4c[m new-diagram
+* [33m29ea738[m adding-diagram
+[31m|[m * [33mbb698f4[m[33m ([m[1;31morigin/duckdb-integration[m[33m)[m starting-integration-for-distributions
+[31m|[m[31m/[m  
+* [33md0b9cd6[m nit
+* [33m95c94d8[m remove-parquet-bloat
+* [33mb3e2048[m add-diagram-to-repo
+* [33m5db1c48[m Minor edits
+* [33m4cdc203[m User is now able to upload a zip file
+* [33m5f30a11[m Updated file limiation to 1gb
+* [33m73ac501[m demo-safe
+* [33ma763756[m Update README.md
+* [33m411cfcc[m nit
+* [33m02de813[m remove-old__pycache__
+* [33m1d4da06[m add-gitignore
+* [33mba906d4[m update-readme-and-add-slider-to-explore-page
+* [33m85884c7[m nit
+* [33mbde8b41[m forcing-rebase-commit
+* [33m32f3637[m db-explore-page
+* [33mbcd7b6c[m used a new dataset, electric vehicles
+* [33maece3b7[m rename-app-to-dashboard
+* [33mb6ff5dc[m Minor fix
+* [33m16f4f6f[m Update README.md
+* [33m8d71ec5[m skeleton
+* [33m0f0c693[m Initial commit: EDA Dashboard project setup
+* [33m00df594[m 
