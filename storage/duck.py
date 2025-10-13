@@ -4,6 +4,8 @@ import duckdb, pathlib
 
 DB = pathlib.Path("data/duckdb/eda.duckdb")
 DB.parent.mkdir(parents=True, exist_ok=True)
+DB_PATH = "data/duckdb/eda.duckdb"
+
 
 def connect(read_only=False):
     return duckdb.connect(str(DB), read_only=read_only)

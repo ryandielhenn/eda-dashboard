@@ -1,179 +1,120 @@
-# app/pages/01_Explore.py
 import os
 import pandas as pd
 import streamlit as st
-from utils import inject_css, kpi_grid, spinner
-from storage.duck import ingest_parquet, list_datasets, sql, table_name
+import duckdb
+from utils import inject_css, spinner
+from storage.duck import ingest_parquet, list_datasets, sql
 
+DUCKDB_PATH = "data/duckdb/eda.duckdb"
 DATA_PROC = "data/processed"
+os.makedirs(os.path.dirname(DUCKDB_PATH), exist_ok=True)
 os.makedirs(DATA_PROC, exist_ok=True)
-
-def save_df_as_parquet(df: pd.DataFrame, basename: str) -> str:
-    path = os.path.join(DATA_PROC, f"{basename}.parquet")
-    df.to_parquet(path, index=False)
-    return path
-
-def sanitize_id(name: str) -> str:
-    return "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in name)
-
-def quote_ident(col: str) -> str:
-    return '"' + col.replace('"', '""') + '"'
-
-def render_kpis_from_duckdb(tbl: str):
-    # total rows
-    _, cnt_rows = sql(f"SELECT COUNT(*) AS n FROM {tbl}")
-    total_rows = int(cnt_rows[0][0]) if cnt_rows else 0
-
-    # schema
-    s_cols, s_rows = sql(f"DESCRIBE SELECT * FROM {tbl}")
-    schema_df = pd.DataFrame(s_rows, columns=s_cols)
-    colnames = schema_df["column_name"].tolist() if not schema_df.empty else []
-
-    # numeric columns
-    num_cols = int(
-        schema_df["column_type"]
-        .str.contains(r"(INT|DECIMAL|DOUBLE|FLOAT|REAL|HUGEINT|SMALLINT|TINYINT)", case=False, regex=True)
-        .sum()
-    ) if not schema_df.empty else 0
-
-    # % rows with ANY missing value
-    if total_rows > 0 and colnames:
-        or_expr = " OR ".join(f"{quote_ident(c)} IS NULL" for c in colnames)
-        _, miss_rows = sql(
-            f"SELECT 100.0 * SUM(CASE WHEN {or_expr} THEN 1 ELSE 0 END)/COUNT(*) AS pct FROM {tbl}"
-        )
-        missing_any_pct = round(float(miss_rows[0][0] or 0.0), 2)
-    else:
-        missing_any_pct = 0.0
-
-    kpi_grid({
-        "Rows": total_rows,
-        "Columns": len(colnames),
-        "Numeric cols": num_cols,
-        "Missing % (any row)": missing_any_pct,
-    })
 
 inject_css()
 st.title("01 · Explore")
 
-# Flash success message from previous run (if set)
-flash = st.session_state.pop("flash", None)
-if flash:
-    st.success(flash)
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Upload → (CSV or ZIP→CSV) → save parquet → ingest into DuckDB
-# Use a NONCE in the uploader key so it resets after each ingest
-# ──────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────
+# Upload or ingest datasets
+# ───────────────────────────────
 nonce = st.session_state.get("uploader_nonce", 0)
-uploaded = st.file_uploader(
-    "Upload CSV or ZIP (containing CSV)", type=["csv", "zip"], key=f"csv_upload_{nonce}"
-)
+uploaded = st.file_uploader("Upload CSV or ZIP (containing CSV)", type=["csv", "zip"], key=f"upload_{nonce}")
 
-def _ingest_df(df: pd.DataFrame, dataset_basename: str):
-    path = save_df_as_parquet(df, dataset_basename)
+def save_df_as_parquet(df, basename):
+    path = os.path.join(DATA_PROC, f"{basename}.parquet")
+    df.to_parquet(path, index=False)
+    return path
+
+def sanitize(name):
+    return "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in name)
+
+def _ingest(df, basename):
+    path = save_df_as_parquet(df, basename)
     with spinner("Ingesting into DuckDB…"):
-        tbl, n_rows, n_cols = ingest_parquet(path, dataset_id=dataset_basename)
-    # Select the new dataset, bump nonce to reset uploader, flash, rerun
-    st.session_state["dataset_choice"] = dataset_basename
+        tbl, n_rows, n_cols = ingest_parquet(path, dataset_id=basename)
+    st.session_state["dataset_choice"] = tbl  # true internal name (ds_)
     st.session_state["uploader_nonce"] = nonce + 1
-    st.session_state["flash"] = (
-        f"Saved **{dataset_basename}** → `{path}` and ingested as `{tbl}` ({n_rows}×{n_cols})."
-    )
+    st.success(f"✅ Ingested **{basename}** → `{tbl}` ({n_rows}×{n_cols})")
     st.rerun()
 
 if uploaded is not None:
-    # Case 1: plain CSV (your original flow)
     if uploaded.name.lower().endswith(".csv"):
-        with spinner("Reading CSV…"):
-            df = pd.read_csv(uploaded, low_memory=False)
-        dataset_id = sanitize_id(os.path.splitext(uploaded.name)[0])
-        _ingest_df(df, dataset_id)
-
-    # Case 2: ZIP containing one or more CSVs
+        df = pd.read_csv(uploaded, low_memory=False)
+        _ingest(df, sanitize(os.path.splitext(uploaded.name)[0]))
     elif uploaded.name.lower().endswith(".zip"):
         import zipfile
         with zipfile.ZipFile(uploaded, "r") as zf:
-            csv_files = [f for f in zf.namelist() if f.lower().endswith(".csv")]
-
-        if not csv_files:
-            st.error("No CSV file found inside the ZIP.")
+            csvs = [f for f in zf.namelist() if f.lower().endswith(".csv")]
+        if not csvs:
+            st.error("No CSV found in ZIP.")
         else:
-            chosen_csv = st.selectbox(
-                "Select a CSV inside the ZIP", csv_files, key=f"zip_choice_{nonce}"
-            )
-
-            # Show a small preview of the selected CSV
-            with zipfile.ZipFile(uploaded, "r") as zf:
-                with zf.open(chosen_csv) as f:
-                    try:
-                        preview_df = pd.read_csv(f, nrows=25, low_memory=False)
-                        st.markdown("**Preview (first 25 rows):**")
-                        st.dataframe(preview_df, use_container_width=True)
-                    except Exception as e:
-                        st.warning(f"Preview failed: {e}")
-
-            # Add a button so ingestion only happens when user confirms
-            if st.button("Ingest selected CSV", key=f"ingest_btn_{nonce}"):
+            pick = st.selectbox("Select CSV inside ZIP", csvs)
+            if st.button("Ingest selected CSV"):
                 with zipfile.ZipFile(uploaded, "r") as zf:
-                    with zf.open(chosen_csv) as f:
-                        with spinner("Reading CSV from ZIP…"):
-                            df = pd.read_csv(f, low_memory=False)
+                    with zf.open(pick) as f:
+                        df = pd.read_csv(f, low_memory=False)
+                _ingest(df, sanitize(os.path.splitext(os.path.basename(pick))[0]))
 
-                inner_base = os.path.splitext(os.path.basename(chosen_csv))[0]
-                dataset_id = sanitize_id(inner_base)
-                _ingest_df(df, dataset_id)
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Datasets known to DuckDB (KPIs, Preview, Schema all from DuckDB)
-# ──────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────
+# Existing datasets
+# ───────────────────────────────
+# ───────────────────────────────
+# Existing datasets
+# ───────────────────────────────
 st.subheader("Datasets")
-duck_rows = list_datasets()  # [(dataset_id, path, n_rows, n_cols, last_ingested), ...]
-
-if not duck_rows:
+rows = list_datasets()
+if not rows:
     st.caption("No datasets yet. Upload a CSV above.")
-else:
-    # Sort by last_ingested DESC so newest appears first
-    duck_rows_sorted = sorted(duck_rows, key=lambda r: r[4], reverse=True)
-    ids = [r[0] for r in duck_rows_sorted]
+    st.stop()
 
-    # Seed default only if not set or stale
-    if "dataset_choice" not in st.session_state or st.session_state["dataset_choice"] not in ids:
-        st.session_state["dataset_choice"] = ids[0]
+rows = sorted(rows, key=lambda r: r[4], reverse=True)
 
-    # Bind the selectbox to a persistent key so user choice sticks
-    choice = st.selectbox("Select dataset", ids, key="dataset_choice")
+# Build friendly mappings
+real_to_pretty = {r[0]: r[0].replace("ds_", "", 1) for r in rows}
+pretty_to_real = {v: k for k, v in real_to_pretty.items()}
+pretty_names = list(pretty_to_real.keys())
 
-    # Find meta for caption (from sorted rows)
-    meta = next((r for r in duck_rows_sorted if r[0] == choice), None)
-    if meta:
-        st.caption(f"{meta[2]}×{meta[3]} • {meta[1]} • ingested {meta[4]}")
-    if choice is None:
-        st.warning("No dataset selected.")
-        st.stop()
-        
-    tbl = table_name(choice)
+# 🔹 Keep dataset stable — only update if user selects new one
+if "dataset_choice" not in st.session_state:
+    # initialize with latest dataset
+    st.session_state["dataset_choice"] = rows[0][0]  # the ds_ name
 
-    # KPIs (single source of truth)
-    render_kpis_from_duckdb(tbl)
+# Current active table
+current_tbl = st.session_state["dataset_choice"]
+current_pretty = real_to_pretty.get(current_tbl, current_tbl.replace("ds_", "", 1))
+default_index = pretty_names.index(current_pretty) if current_pretty in pretty_names else 0
 
-    # ---------- Preview ----------
-    st.markdown("##### Preview")
-    n = st.slider("Rows to preview", 10, 500, 25, key="preview_rows")
+# Show dropdown for manual switching
+choice_pretty = st.selectbox(
+    "Select dataset", 
+    pretty_names, 
+    index=default_index, 
+    key="dataset_dropdown"
+)
 
-    try:
-        prev_cols, prev_rows = sql(f"SELECT * FROM {tbl} LIMIT {n}")
-        st.dataframe(pd.DataFrame(prev_rows, columns=prev_cols), use_container_width=True)
-        st.caption(f"Showing first {len(prev_rows)} rows")
-    except Exception as e:
-        st.error(f"Preview failed for `{tbl}`: {e}")
+# Map to real DuckDB table
+tbl = pretty_to_real[choice_pretty]
+if not tbl.startswith("ds_"):
+    tbl = f"ds_{tbl}"
 
-    # ---------- Schema ----------
-    with st.expander("Schema", expanded=False):
-        try:
-            s_cols, s_rows = sql(f"DESCRIBE SELECT * FROM {tbl}")
-            st.dataframe(pd.DataFrame(s_rows, columns=s_cols), use_container_width=True)
-        except Exception as e:
-            st.error(f"Schema fetch failed: {e}")
+# Update only if changed
+if tbl != st.session_state["dataset_choice"]:
+    st.session_state["dataset_choice"] = tbl
 
+st.caption(f"📂 Active table: `{tbl}`")
+
+# ───────────────────────────────
+# KPIs + preview
+# ───────────────────────────────
+try:
+    _, cnt = sql(f"SELECT COUNT(*) AS n FROM {tbl}")
+    total_rows = int(cnt[0][0])
+    st.metric("Rows", total_rows)
+except Exception as e:
+    st.error(f"Error reading table `{tbl}`: {e}")
+    st.stop()
+
+try:
+    cols, rows_ = sql(f"SELECT * FROM {tbl} LIMIT 25")
+    st.dataframe(pd.DataFrame(rows_, columns=cols), use_container_width=True)
+except Exception as e:
+    st.error(f"Preview failed: {e}")
