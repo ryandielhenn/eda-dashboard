@@ -32,7 +32,7 @@ def render_kpis_from_duckdb(tbl: str):
     # numeric columns
     num_cols = int(
         schema_df["column_type"]
-        .str.contains(r"(INT|DECIMAL|DOUBLE|FLOAT|REAL|HUGEINT|SMALLINT|TINYINT)", case=False, regex=True)
+        .str.contains(r"(?:INT|DECIMAL|DOUBLE|FLOAT|REAL|HUGEINT|SMALLINT|TINYINT)", case=False, regex=True)
         .sum()
     ) if not schema_df.empty else 0
 
@@ -109,7 +109,7 @@ if uploaded is not None:
                     try:
                         preview_df = pd.read_csv(f, nrows=25, low_memory=False)
                         st.markdown("**Preview (first 25 rows):**")
-                        st.dataframe(preview_df, use_container_width=True)
+                        st.dataframe(preview_df, width='stretch')
                     except Exception as e:
                         st.warning(f"Preview failed: {e}")
 
@@ -164,7 +164,7 @@ else:
 
     try:
         prev_cols, prev_rows = sql(f"SELECT * FROM {tbl} LIMIT {n}")
-        st.dataframe(pd.DataFrame(prev_rows, columns=prev_cols), use_container_width=True)
+        st.dataframe(pd.DataFrame(prev_rows, columns=prev_cols), width='stretch')
         st.caption(f"Showing first {len(prev_rows)} rows")
     except Exception as e:
         st.error(f"Preview failed for `{tbl}`: {e}")
@@ -173,7 +173,7 @@ else:
     with st.expander("Schema", expanded=False):
         try:
             s_cols, s_rows = sql(f"DESCRIBE SELECT * FROM {tbl}")
-            st.dataframe(pd.DataFrame(s_rows, columns=s_cols), use_container_width=True)
+            st.dataframe(pd.DataFrame(s_rows, columns=s_cols), width='stretch')
         except Exception as e:
             st.error(f"Schema fetch failed: {e}")
 
