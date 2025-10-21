@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import sys, os
+from duck import connect
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 STORAGE_DIR = os.path.join(ROOT_DIR, "storage")
 if STORAGE_DIR not in sys.path:
