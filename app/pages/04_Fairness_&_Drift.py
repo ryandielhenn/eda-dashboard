@@ -41,7 +41,7 @@ with tab_fair:
         tbl = pd.DataFrame({"group": g, "y": y.astype(int)}).groupby("group")["y"].mean().rename("selection_rate").reset_index()
         dp = float(tbl["selection_rate"].max() - tbl["selection_rate"].min())
         st.success(f"Demographic parity difference: **{dp:.3f}**")
-        st.dataframe(tbl.sort_values("selection_rate", ascending=False), use_container_width=True)
+        st.dataframe(tbl.sort_values("selection_rate", ascending=False))
         st.caption("This demo mimics Fairlearn's selection rate by group; in the full version we'll compute real fairness metrics via Fairlearn/Evidently.")
     else:
         st.info("Pick a numeric column and a categorical sensitive attribute.")
@@ -53,5 +53,5 @@ with tab_drift:
     if ref and cur and ref != cur:
         psi_tbl = pd.DataFrame({"column": ["age","income","score"], "psi": [0.07, 0.21, 0.11]})
         psi_tbl["flag"] = np.where(psi_tbl["psi"]>0.2, "⚠️", "")
-        st.dataframe(psi_tbl, use_container_width=True)
+        st.dataframe(psi_tbl)
         st.caption("Rule of thumb: PSI > 0.2 indicates significant shift.")

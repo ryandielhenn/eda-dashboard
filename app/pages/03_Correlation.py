@@ -32,7 +32,7 @@ with st.spinner("Computing Pearson correlation…"):
 st.subheader("Correlation heatmap (Pearson)")
 fig = px.imshow(corr, text_auto=".2f", aspect="auto", color_continuous_scale="Blues")
 fig.update_layout(height=520, margin=dict(l=0, r=0, t=24, b=0))
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig)
 
 # ---- Stable pair extraction (works across pandas versions) ----
 # Take the upper triangle (k=1 skips the diagonal)
@@ -52,10 +52,10 @@ low_pairs = pairs.reindex(pairs["value"].abs().sort_values(ascending=True).index
 c1, c2 = st.columns(2)
 with c1:
     st.write("**Top pairs**")
-    st.dataframe(top_pairs.reset_index(drop=True), use_container_width=True)
+    st.dataframe(top_pairs.reset_index(drop=True))
 with c2:
     st.write("**Lowest pairs**")
-    st.dataframe(low_pairs.reset_index(drop=True), use_container_width=True)
+    st.dataframe(low_pairs.reset_index(drop=True))
 
 # Download button for the full correlation matrix
 csv = corr.to_csv().encode()

@@ -4,7 +4,7 @@ import streamlit as st
 from utils import inject_css, kpi_grid
 import plotly.express as px
 import duckdb
-from bias_metrics import (  # ADD THIS IMPORT
+from bias_metrics import (
     numeric_bias_metrics_duckdb,
     categorical_bias_metrics_duckdb,
     format_pct,
@@ -88,7 +88,6 @@ def get_value_counts(table_name, col, top_k):
 
 # Main app
 tables = get_tables()
-
 if not tables:
     st.info("No datasets found. Go to **01 · Explore** and upload a CSV.")
     st.stop()
@@ -125,20 +124,17 @@ with tab_num:
             st.caption(f"Box plot based on {len(sample_data):,} sampled rows")
             fig_box = px.box(sample_data, x=col)
             fig_box.update_layout(height=200)
-            st.plotly_chart(fig_box, use_container_width=True)
-
+            st.plotly_chart(fig_box)
             # Create histogram from aggregated data
             fig = px.bar(hist_data, x='bin_start', y='count', 
                         labels={'bin_start': col, 'count': 'Frequency'})
             fig.update_traces(marker_line_width=0)
             fig.update_layout(height=380, bargap=0.05, showlegend=False)
-            st.plotly_chart(fig, use_container_width=True)
-
+            st.plotly_chart(fig)
             st.divider()
             st.subheader("Bias Check")
             
             nm = numeric_bias_metrics_duckdb(DUCKDB_PATH, choice, col, bins)
-            # In the numeric tab, replace the metrics section with:
             if nm is None:
                 st.info("No numeric bias metrics available.")
             else:
@@ -151,12 +147,11 @@ with tab_num:
                 })
                 
                 with st.expander("📊 Top bins by share", expanded=False):
-                    st.dataframe(nm["bins_table"], use_container_width=True, hide_index=True)
+                    st.dataframe(nm["bins_table"], width='stretch', hide_index=True)
                 
                 st.caption("Heuristics: max-bin ≥25% (mild), ≥40% (severe); outliers ≥10% (mild), ≥20% (severe)")
                 
             
-
 with tab_cat:
     if not cat_cols:
         st.caption("No categorical columns detected.")
@@ -171,13 +166,12 @@ with tab_cat:
         
         fig = px.bar(vc, x=colc, y="count")
         fig.update_layout(height=360)
-        st.plotly_chart(fig, use_container_width=True)
-
+        st.plotly_chart(fig)
         st.divider()
         st.subheader("Bias Check")
         
         cm = categorical_bias_metrics_duckdb(DUCKDB_PATH, choice, colc)
-        # In the categorical tab, replace with:
+
         if cm is None:
             st.info("No categorical bias metrics available.")
         else:
@@ -190,6 +184,6 @@ with tab_cat:
             })
             
             with st.expander("Top categories", expanded=False):
-                st.dataframe(cm["top_table"], use_container_width=True, hide_index=True)
+                st.dataframe(cm["top_table"], width='stretch', hide_index=True)
             
             st.caption("💡 Heuristics: majority share ≥70% (mild), ≥90% (severe); imbalance ratio ≥5× (mild), ≥10× (severe)")
