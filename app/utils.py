@@ -1,7 +1,52 @@
 # utils.py
+# utils.py
 import streamlit as st
 import pandas as pd
 from contextlib import contextmanager
+import os, sys
+
+# Add storage path manually (so Streamlit finds duck.py)
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+STORAGE_DIR = os.path.join(APP_DIR, "storage")
+if STORAGE_DIR not in sys.path:
+    sys.path.insert(0, STORAGE_DIR)
+import sys, os
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STORAGE_DIR = os.path.join(ROOT_DIR, "storage")
+if STORAGE_DIR not in sys.path:
+    sys.path.insert(0, STORAGE_DIR)
+
+from duck import connect
+
+
+
+
+
+
+
+def dataset_selector(label="Select dataset"):
+    """Shared dataset dropdown across all pages"""
+    con = connect()
+    tables = [r[0] for r in con.execute("SHOW TABLES").fetchall()]
+    tables = [t for t in tables if t != "datasets"]
+
+    if not tables:
+        st.warning("No datasets found. Go to **01 · Explore** to upload a CSV.")
+        st.stop()
+
+    # Current active dataset
+    current = st.session_state.get("dataset_choice")
+    if not current or current not in tables:
+        current = tables[-1]
+        st.session_state["dataset_choice"] = current
+
+    # Dropdown
+    choice = st.selectbox(label, tables, index=tables.index(current))
+    if choice != st.session_state.get("dataset_choice"):
+        st.session_state["dataset_choice"] = choice
+        st.rerun()
+
+    return st.session_state["dataset_choice"]
 
 def _hex_to_rgba(hex_color: str, alpha: float) -> str:
     """Convert #RRGGBB to rgba(r,g,b,a)."""

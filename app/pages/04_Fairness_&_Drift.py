@@ -1,29 +1,60 @@
 import os
+import sys
 import numpy as np
 import pandas as pd
 import streamlit as st
-from utils import inject_css, load_parquet
+
+# Utilities and helpers
+from storage.duck import connect, get_tables, load_table
+from utils import inject_css, dataset_selector
+
+# Add root /storage to sys.path
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+STORAGE_DIR = os.path.join(ROOT_DIR, "storage")
+if STORAGE_DIR not in sys.path:
+    sys.path.insert(0, STORAGE_DIR)
+
 
 inject_css()
-DATA_PROC="data/processed"
 st.title("04 · Fairness & Drift")
 
-files = sorted([f for f in os.listdir(DATA_PROC) if f.endswith(".parquet")]) if os.path.isdir(DATA_PROC) else []
-if not files:
+# ───────────────────────────────────────────────
+# Get active dataset (synced with Explore)
+# ───────────────────────────────────────────────
+dataset_choice = st.session_state.get("dataset_choice")
+dataset_choice = dataset_selector()
+# Ensure DuckDB has data
+con = connect()
+tables = get_tables()
+
+if not tables:
     st.info("No datasets found. Go to **01 · Explore** and upload a CSV.")
     st.stop()
 
+# Self-heal if dataset not selected or stale
+if not dataset_choice or dataset_choice not in tables:
+    dataset_choice = tables[-1]
+    st.session_state["dataset_choice"] = dataset_choice
+
+st.caption(f"📂 Active dataset: `{dataset_choice}`")
+
+# ───────────────────────────────────────────────
+# Load from DuckDB
+# ───────────────────────────────────────────────
+df = load_table(dataset_choice)
+
+# ───────────────────────────────────────────────
+# Tabs: Fairness | Drift
+# ───────────────────────────────────────────────
 tab_fair, tab_drift = st.tabs(["Fairness (interactive demo)", "Drift (mock)"])
 
+# ──────────── Fairness ────────────
 with tab_fair:
-    ds = st.selectbox("Dataset", files, key="fair_ds")
-    df = load_parquet(os.path.join(DATA_PROC, ds))
-
-    num_cols=[c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
-    cat_cols=[c for c in df.columns if c not in num_cols]
+    num_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+    cat_cols = [c for c in df.columns if c not in num_cols]
 
     st.markdown("**Create a binary target**")
-    c1,c2,c3 = st.columns([2,1,1])
+    c1, c2, c3 = st.columns([2, 1, 1])
     with c1:
         tcol = st.selectbox("Numeric column", num_cols or ["<none>"])
     with c2:
@@ -38,20 +69,41 @@ with tab_fair:
         y = (df[tcol] > thresh) if ">" in positive_def else (df[tcol] <= thresh)
         g = df[sattr].astype(str)
 
-        tbl = pd.DataFrame({"group": g, "y": y.astype(int)}).groupby("group")["y"].mean().rename("selection_rate").reset_index()
+        tbl = (
+            pd.DataFrame({"group": g, "y": y.astype(int)})
+            .groupby("group")["y"]
+            .mean()
+            .rename("selection_rate")
+            .reset_index()
+        )
         dp = float(tbl["selection_rate"].max() - tbl["selection_rate"].min())
+
         st.success(f"Demographic parity difference: **{dp:.3f}**")
-        st.dataframe(tbl.sort_values("selection_rate", ascending=False))
-        st.caption("This demo mimics Fairlearn's selection rate by group; in the full version we'll compute real fairness metrics via Fairlearn/Evidently.")
+        st.dataframe(tbl.sort_values("selection_rate", ascending=False), width='stretch', hide_index=True)
+        st.caption(
+            "This demo mimics Fairlearn's selection rate by group; "
+            "in the full version, real fairness metrics will be computed via Fairlearn/Evidently."
+        )
     else:
         st.info("Pick a numeric column and a categorical sensitive attribute.")
 
+# ──────────── Drift ────────────
 with tab_drift:
     st.caption("Mock drift to show planned UX.")
-    ref = st.selectbox("Reference dataset", files, key="ref")
-    cur = st.selectbox("Current dataset", files, key="cur")
-    if ref and cur and ref != cur:
-        psi_tbl = pd.DataFrame({"column": ["age","income","score"], "psi": [0.07, 0.21, 0.11]})
-        psi_tbl["flag"] = np.where(psi_tbl["psi"]>0.2, "⚠️", "")
-        st.dataframe(psi_tbl)
-        st.caption("Rule of thumb: PSI > 0.2 indicates significant shift.")
+    # Use all tables except the active one for selection
+    available = [t for t in tables if t != dataset_choice]
+
+    if not available:
+        st.info("No other datasets available to compare drift.")
+    else:
+        ref = dataset_choice
+        cur = st.selectbox("Compare against", available, key="cur_ds")
+
+        if cur and ref != cur:
+            psi_tbl = pd.DataFrame({
+                "column": ["age", "income", "score"],
+                "psi": [0.07, 0.21, 0.11],
+            })
+            psi_tbl["flag"] = np.where(psi_tbl["psi"] > 0.2, "⚠️", "")
+            st.dataframe(psi_tbl, width='stretch', hide_index=True)
+            st.caption("Rule of thumb: PSI > 0.2 indicates significant shift.")
