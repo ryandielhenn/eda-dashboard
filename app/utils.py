@@ -1,28 +1,25 @@
-# utils.py
-# utils.py
+# app/utils.py
+import sys
+import os
+
+# Add project root to path
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 import streamlit as st
 import pandas as pd
 from contextlib import contextmanager
-import os, sys
+from storage.duck import connect
 
-# Add storage path manually (so Streamlit finds duck.py)
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-STORAGE_DIR = os.path.join(APP_DIR, "storage")
-if STORAGE_DIR not in sys.path:
-    sys.path.insert(0, STORAGE_DIR)
-import sys, os
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STORAGE_DIR = os.path.join(ROOT_DIR, "storage")
-if STORAGE_DIR not in sys.path:
-    sys.path.insert(0, STORAGE_DIR)
+def format_pct(x: float) -> str:
+    try:
+        return f"{x*100:.1f}%"
+    except Exception:
+        return "—"
 
-from duck import connect
-
-
-
-
-
-
+def severity_badge(level: str) -> str:
+    return {"ok": "🟢 OK", "info": "🔵 Info", "mild": "🟠 Mild", "severe": "🔴 Severe"}.get(level, "🟢 OK")
 
 def dataset_selector(label="Select dataset"):
     """Shared dataset dropdown across all pages"""
@@ -94,6 +91,15 @@ def inject_css():
             font-size: 1.35rem;
             line-height: 1.2;
             color: var(--kpi-text);
+          }
+          /* Hide Streamlit's automatic loading bar */
+          div[data-testid="stStatusWidget"] {
+            display: none;
+          }
+        
+          /* Also hide the running man animation */
+          .stApp > header [data-testid="stStatusWidget"] {
+            display: none;
           }
         </style>
         """,

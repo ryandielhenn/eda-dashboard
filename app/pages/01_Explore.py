@@ -1,15 +1,9 @@
 import os
 import pandas as pd
 import streamlit as st
-from utils import inject_css, kpi_grid, spinner
-from utils import inject_css, dataset_selector
-import sys, os
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-STORAGE_DIR = os.path.join(ROOT_DIR, "storage")
-if STORAGE_DIR not in sys.path:
-    sys.path.insert(0, STORAGE_DIR)
 
-from duck import ingest_parquet, list_datasets, sql, table_name
+from utils import inject_css, kpi_grid, spinner
+from storage.duck import ingest_parquet, list_datasets, sql
 
 
 DATA_PROC = "data/processed"

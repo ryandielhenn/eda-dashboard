@@ -3,17 +3,20 @@ import sys
 import streamlit as st
 import plotly.express as px
 
-from duck import get_tables, get_schema, get_value_counts, get_numeric_histogram
 from utils import (
     inject_css, 
     kpi_grid, 
     dataset_selector,
-)
-from bias_metrics import (
-    numeric_bias_metrics_duckdb,
-    categorical_bias_metrics_duckdb,
     format_pct,
     severity_badge,
+)
+from storage.duck import (
+    get_tables, 
+    get_schema, 
+    get_value_counts, 
+    get_numeric_histogram, 
+    get_categorical_bias_metrics, 
+    get_numeric_bias_metrics,
 )
 
 # Add root storage folder to sys.path
@@ -102,7 +105,7 @@ with tab_num:
             st.divider()
             st.subheader("Bias Check")
             
-            nm = numeric_bias_metrics_duckdb(DUCKDB_PATH, dataset_choice, col, bins)
+            nm = get_numeric_bias_metrics(dataset_choice, col, bins)
             if nm is None:
                 st.info("No numeric bias metrics available.")
             else:
@@ -139,7 +142,7 @@ with tab_cat:
         st.divider()
         st.subheader("Bias Check")
         
-        cm = categorical_bias_metrics_duckdb(DUCKDB_PATH, dataset_choice, colc)
+        cm = get_categorical_bias_metrics(dataset_choice, colc)
         if cm is None:
             st.info("No categorical bias metrics available.")
         else:

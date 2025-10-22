@@ -1,19 +1,12 @@
-import os
-import sys
 import pandas as pd
 import numpy as np
 import streamlit as st
 import plotly.express as px
 
 # Utilities and helpers
-from storage.duck import connect, get_tables, load_table
 from utils import inject_css, dataset_selector
+from storage.duck import connect, get_tables, load_table
 
-# Add root /storage to sys.path
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-STORAGE_DIR = os.path.join(ROOT_DIR, "storage")
-if STORAGE_DIR not in sys.path:
-    sys.path.insert(0, STORAGE_DIR)
 
 
 DUCKDB_PATH = "data/duckdb/eda.duckdb"
