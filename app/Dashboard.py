@@ -195,10 +195,14 @@ st.markdown("</div>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# UPCOMING (xxxx items)
+# UPCOMING (Future Work)
 # ──────────────────────────────────────────────────────────────────────────────
-st.subheader("🌟 Upcoming Features")
-st.write("- xxxx\n- xxxx\n- xxxx\n- xxxx\n- xxxx")
+st.subheader("🌟 Future Work: Dataset Merging Functionality")
+st.write("""
+- Implement ability to combine multiple datasets for cross-dataset analysis  
+- Support various join types (inner, outer, left, right) to accommodate different analysis needs  
+- Enable users to map and align columns across different data sources
+""")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
