@@ -1,1 +1,0 @@
-'''Background job for periodic profiling (simulating live updates).'''

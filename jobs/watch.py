@@ -1,1 +1,0 @@
-'''Optional file watcher job that triggers profiling on new uploads.'''
