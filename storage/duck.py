@@ -65,6 +65,28 @@ def ingest_parquet(parquet_path: str, dataset_id: str):
     
     return tbl, n_rows, n_cols
 
+def ingest_csv(csv_path: str, dataset_id: str):
+    """Ingest CSV directly with thread safety."""
+    init_db()
+    con = connect()
+    tbl = table_name(dataset_id)
+    
+    with _lock:
+        con.execute(f"CREATE OR REPLACE TABLE {tbl} AS SELECT * FROM read_csv_auto('{csv_path}')")
+        n_rows = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
+        n_cols = len(con.execute(f"SELECT * FROM {tbl} LIMIT 0").description or [])
+        con.execute("""
+            INSERT INTO datasets(dataset_id, path, n_rows, n_cols, last_ingested)
+            VALUES (?, ?, ?, ?, now())
+            ON CONFLICT(dataset_id) DO UPDATE SET
+                path = excluded.path,
+                n_rows = excluded.n_rows,
+                n_cols = excluded.n_cols,
+                last_ingested = now();
+        """, [dataset_id, csv_path, n_rows, n_cols])
+    
+    return tbl, n_rows, n_cols
+
 def list_datasets():
     """List datasets using shared connection."""
     init_db()

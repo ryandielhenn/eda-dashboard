@@ -3,21 +3,16 @@ import pandas as pd
 import streamlit as st
 
 from utils import inject_css, kpi_grid, spinner
-from storage.duck import ingest_parquet, list_datasets, sql
+from storage.duck import ingest_csv, list_datasets, sql
 
 
 DATA_PROC = "data/processed"
 os.makedirs(DATA_PROC, exist_ok=True)
 
-def save_df_as_parquet(df: pd.DataFrame, basename: str) -> str:
-    path = os.path.join(DATA_PROC, f"{basename}.parquet")
-    df.to_parquet(path, index=False)
-    return path
-
 def sanitize_id(name: str) -> str:
     return "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in name)
 
-def quote_ident(col: str) -> str:
+def quote_indent(col: str) -> str:
     return '"' + col.replace('"', '""') + '"'
 
 def render_kpis_from_duckdb(tbl: str):
@@ -39,7 +34,7 @@ def render_kpis_from_duckdb(tbl: str):
 
     # % rows with ANY missing value
     if total_rows > 0 and colnames:
-        or_expr = " OR ".join(f"{quote_ident(c)} IS NULL" for c in colnames)
+        or_expr = " OR ".join(f"{quote_indent(c)} IS NULL" for c in colnames)
         _, miss_rows = sql(
             f"SELECT 100.0 * SUM(CASE WHEN {or_expr} THEN 1 ELSE 0 END)/COUNT(*) AS pct FROM {tbl}"
         )
@@ -73,38 +68,49 @@ uploaded = st.file_uploader(
     "Upload CSV or ZIP (containing CSV)", type=["csv", "zip"], key=f"upload_{nonce}"
 )
 
-def _ingest_df(df: pd.DataFrame, dataset_basename: str):
-    path = save_df_as_parquet(df, dataset_basename)
+def _ingest_csv(csv_path: str, dataset_basename: str):
+    """Ingest CSV from disk path"""
     with spinner("Ingesting into DuckDB…"):
-        tbl, n_rows, n_cols = ingest_parquet(path, dataset_id=dataset_basename)
+        tbl, n_rows, n_cols = ingest_csv(csv_path, dataset_id=dataset_basename)
     # Update session state and rerun
-    st.session_state["dataset_choice"] = tbl  # real internal ds_ table name
+    st.session_state["dataset_choice"] = tbl
     st.session_state["uploader_nonce"] = nonce + 1
-    st.session_state["flash"] = (
-        f"Saved **{dataset_basename}** → `{path}` and ingested as `{tbl}` ({n_rows}×{n_cols})."
-    )
+    st.session_state["flash"] = f"Ingested **{dataset_basename}** as `{tbl}` ({n_rows}×{n_cols})."
     st.rerun()
-
 
 if uploaded is not None:
     if uploaded.name.lower().endswith(".csv"):
-        with spinner("Reading CSV…"):
-            df = pd.read_csv(uploaded, low_memory=False)
         dataset_id = sanitize_id(os.path.splitext(uploaded.name)[0])
-        _ingest_df(df, dataset_id)
+        
+        # Save uploaded file to disk first
+        csv_path = os.path.join(DATA_PROC, f"{dataset_id}.csv")
+        with open(csv_path, 'wb') as f:
+            f.write(uploaded.getbuffer())
+        
+        # Ingest from disk
+        _ingest_csv(csv_path, dataset_id)
+        
     elif uploaded.name.lower().endswith(".zip"):
         import zipfile
+        
         with zipfile.ZipFile(uploaded, "r") as zf:
             csvs = [f for f in zf.namelist() if f.lower().endswith(".csv")]
+        
         if not csvs:
             st.error("No CSV file found inside the ZIP.")
         else:
             pick = st.selectbox("Select a CSV inside ZIP", csvs)
             if st.button("Ingest selected CSV"):
+                # Extract CSV from ZIP to disk
                 with zipfile.ZipFile(uploaded, "r") as zf:
-                    with zf.open(pick) as f:
-                        df = pd.read_csv(f, low_memory=False)
-                _ingest_df(df, sanitize_id(os.path.splitext(os.path.basename(pick))[0]))
+                    csv_content = zf.read(pick)
+                
+                dataset_id = sanitize_id(os.path.splitext(os.path.basename(pick))[0])
+                csv_path = os.path.join(DATA_PROC, f"{dataset_id}.csv")
+                
+                with open(csv_path, 'wb') as f:
+                    f.write(csv_content)
+                _ingest_csv(csv_path, dataset_id)
 
 # ───────────────────────────────
 # Datasets known to DuckDB
