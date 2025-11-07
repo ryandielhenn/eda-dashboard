@@ -1,87 +1,10 @@
-import numpy as np
 import pandas as pd
 import streamlit as st
 
 # Utilities and helpers
+from analytics.drift import compute_psi_table
 from utils import inject_css, dataset_selector
 from storage.duck import get_tables, load_table
-
-# ───────────────────────────────────────────────
-# PSI helpers
-# ───────────────────────────────────────────────
-def _psi_from_props(ref_p: pd.Series, cur_p: pd.Series) -> float:
-    """Population Stability Index from two probability vectors (same index)."""
-    eps = 1e-6
-    ref_p = ref_p.clip(lower=eps)
-    cur_p = cur_p.clip(lower=eps)
-    return float(np.sum((ref_p - cur_p) * np.log(ref_p / cur_p)))
-
-def psi_numeric(ref: pd.Series, cur: pd.Series, n_bins: int = 10) -> float:
-    """PSI for numeric columns using quantile bins computed on reference only."""
-    ref = pd.to_numeric(ref, errors="coerce").dropna()
-    cur = pd.to_numeric(cur, errors="coerce").dropna()
-    if ref.empty or cur.empty:
-        return np.nan
-
-    # Quantile edges from reference; unique to avoid degenerate bins on constants
-    edges = np.unique(np.quantile(ref, np.linspace(0, 1, n_bins + 1)))
-    if len(edges) < 2:
-        return 0.0  # constant column -> no shift
-
-    ref_bins = pd.cut(ref, bins=edges, include_lowest=True)
-    cur_bins = pd.cut(cur, bins=edges, include_lowest=True)
-
-    ref_counts = ref_bins.value_counts().sort_index()
-    cur_counts = cur_bins.value_counts().sort_index()
-
-    ref_p = ref_counts / ref_counts.sum()
-    cur_p = cur_counts / cur_counts.sum()
-    return _psi_from_props(ref_p, cur_p)
-
-def psi_categorical(ref: pd.Series, cur: pd.Series, treat_nan_as_category: bool = True) -> float:
-    """PSI for categorical columns by aligning category frequencies."""
-    if treat_nan_as_category:
-        ref = ref.fillna("NA")
-        cur = cur.fillna("NA")
-    else:
-        ref = ref.dropna()
-        cur = cur.dropna()
-
-    ref_counts = ref.astype(str).value_counts()
-    cur_counts = cur.astype(str).value_counts()
-
-    cats = ref_counts.index.union(cur_counts.index)
-    ref_p = ref_counts.reindex(cats, fill_value=0) / ref_counts.sum()
-    cur_p = cur_counts.reindex(cats, fill_value=0) / cur_counts.sum()
-    return _psi_from_props(ref_p, cur_p)
-
-def compute_psi_table(ref_df: pd.DataFrame, cur_df: pd.DataFrame, columns=None, n_bins: int = 10) -> pd.DataFrame:
-    """Compute PSI for shared columns; auto-detect numeric vs categorical."""
-    if columns is None:
-        columns = ref_df.columns.intersection(cur_df.columns)
-
-    rows = []
-    for col in columns:
-        if pd.api.types.is_numeric_dtype(ref_df[col]) and pd.api.types.is_numeric_dtype(cur_df[col]):
-            psi = psi_numeric(ref_df[col], cur_df[col], n_bins=n_bins)
-            ctype = "numeric"
-        else:
-            psi = psi_categorical(ref_df[col], cur_df[col])
-            ctype = "categorical"
-
-        rows.append(
-            {
-                "column": col,
-                "type": ctype,
-                "ref_n": int(ref_df[col].notna().sum()),
-                "cur_n": int(cur_df[col].notna().sum()),
-                "psi": psi,
-                "flag": "⚠️" if (pd.notna(psi) and psi > 0.2) else "",
-            }
-        )
-
-    out = pd.DataFrame(rows).sort_values("psi", ascending=False, na_position="last").reset_index(drop=True)
-    return out
 
 # ───────────────────────────────────────────────
 # UI
@@ -141,7 +64,7 @@ with tab_fair:
         dp = float(grp["selection_rate"].max() - grp["selection_rate"].min())
 
         st.success(f"Demographic parity difference: **{dp:.3f}**")
-        st.dataframe(grp.sort_values("selection_rate", ascending=False), use_container_width=True, hide_index=True)
+        st.dataframe(grp.sort_values("selection_rate", ascending=False), hide_index=True)
         st.caption(
             "This demo mimics Fairlearn's selection rate by group; in a full version, "
             "we would compute additional fairness metrics via Fairlearn/Evidently."
@@ -181,11 +104,13 @@ with tab_drift:
                 with st.spinner("Computing PSI…"):
                     psi_tbl = compute_psi_table(ref_df, cur_df, columns=cols, n_bins=n_bins)
 
-                st.dataframe(psi_tbl, use_container_width=True, hide_index=True)
+                st.dataframe(psi_tbl, hide_index=True)
                 st.caption("Rule of thumb: PSI > 0.2 indicates significant shift (⚠️).")
 
+                psi_tbl_df = pd.DataFrame(psi_tbl)
+
                 # Download CSV (exclude the symbol 'flag' column from export)
-                export_df = psi_tbl.drop(columns=["flag"], errors="ignore")
+                export_df = psi_tbl_df.drop(columns=["flag"], errors="ignore")
                 csv = export_df.to_csv(index=False).encode("utf-8")
                 st.download_button(
                     "Download PSI table (CSV)",
