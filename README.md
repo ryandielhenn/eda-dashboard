@@ -7,46 +7,69 @@ The dashboard is designed to:
 - Provide automated profiling, visualization, and fairness/drift checks.  
 - Support batch workflows for stability, with hooks for optional “live” updates in the future.  
 
-### Running application and required packages
+### Running the Application
 
 #### Requirements
 
-- Python 3.10+  
-- Recommended: a virtual environment (e.g., `venv` or `conda`)
+- Docker and Docker Compose ([Install Docker](https://docs.docker.com/get-docker/))
+- No Python installation or virtual environment needed!
 
+#### Quick Start with Docker (Recommended)
 
-Install dependencies:
+Start both the API backend and Streamlit frontend:
+```bash
+docker-compose up
+```
 
+Access the application:
+- **Frontend (Streamlit):** http://localhost:8501
+- **API Backend:** http://localhost:8000
+- **API Documentation:** http://localhost:8000/docs
+
+Stop the application:
+```bash
+# Press Ctrl+C, then run:
+docker-compose down
+```
+
+**Note:** The FastAPI backend is functional and can be tested via the `/docs` page, but the Streamlit frontend is not yet integrated to call the API. Both systems work independently and share the same DuckDB database file.
+
+---
+
+#### Alternative: Running Without Docker
+
+If you prefer to run without Docker:
+
+**Requirements:**
+- Python 3.10+
+- Virtual environment recommended (e.g., `venv` or `conda`)
+
+**Install dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
 
-**Option 1: Streamlit only (no api)**
+**Option 1: Streamlit Only**
+```bash
+streamlit run app/Dashboard.py
+```
+Access at http://localhost:8501
 
-Run streamlit application:
+**Option 2: With FastAPI Backend**
+
+Terminal 1 - Start API:
+```bash
+uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Terminal 2 - Start Frontend:
 ```bash
 streamlit run app/Dashboard.py
 ```
 
-**Option 2: With FastAPI Backend (New - frontend not integrated to communicate)**
-
-If you want to test the new REST API backend:
-
-1. **Start the FastAPI backend** (in one terminal):
-```bash
-   uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
-```
-   - API will be available at http://127.0.0.1:8000
-   - Interactive docs at http://127.0.0.1:8000/docs
-
-2. **Start Streamlit** (in another terminal):
-```bash
-   streamlit run app/Dashboard.py
-```
-   - Frontend will be at http://localhost:8501
-   - Currently still uses direct DuckDB (not integrated with API yet)
-
-**Note:** The FastAPI backend is functional and can be tested via the `/docs` page, but the Streamlit frontend is not yet integrated to call the API. Both systems work independently and share the same DuckDB database file.
+- API: http://127.0.0.1:8000
+- Frontend: http://localhost:8501
+- API Docs: http://127.0.0.1:8000/docs
 
 ---
 
