@@ -24,6 +24,4 @@ services:
       - PYTHONUNBUFFERED=1
     depends_on:
       - api
-
-volumes:
-  data:
+    mem_limit: 12g
