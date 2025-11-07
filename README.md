@@ -21,10 +21,33 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+**Option 1: Streamlit only (no api)**
+
 Run streamlit application:
 ```bash
 streamlit run app/Dashboard.py
 ```
+
+**Option 2: With FastAPI Backend (New - frontend not integrated to communicate)**
+
+If you want to test the new REST API backend:
+
+1. **Start the FastAPI backend** (in one terminal):
+```bash
+   uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
+```
+   - API will be available at http://127.0.0.1:8000
+   - Interactive docs at http://127.0.0.1:8000/docs
+
+2. **Start Streamlit** (in another terminal):
+```bash
+   streamlit run app/Dashboard.py
+```
+   - Frontend will be at http://localhost:8501
+   - Currently still uses direct DuckDB (not integrated with API yet)
+
+**Note:** The FastAPI backend is functional and can be tested via the `/docs` page, but the Streamlit frontend is not yet integrated to call the API. Both systems work independently and share the same DuckDB database file.
+
 ---
 
 ## Interactive Visualization
