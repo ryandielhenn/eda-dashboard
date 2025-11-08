@@ -44,9 +44,9 @@ If you prefer to run without Docker:
 - Python 3.10+
 - Virtual environment recommended (e.g., `venv` or `conda`)
 
-**Install dependencies:**
+Install dependencies and set up the project:
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
 **Option 1: Streamlit Only**
