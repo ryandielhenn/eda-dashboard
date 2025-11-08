@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 
 # Optional util
 try:
@@ -6,240 +7,430 @@ try:
 except Exception:
     inject_css = lambda: None
 
-st.set_page_config(page_title="EDA Dashboard", layout="wide", page_icon="✨")
+st.set_page_config(page_title="EDA Dashboard", layout="wide", page_icon="📊")
 inject_css()
 
-# ──────────────────────────────────────────────────────────────────────────────
-# CSS — no reveal/opacity tricks; correct light/dark tokens
-# ──────────────────────────────────────────────────────────────────────────────
+# Custom styling for Streamlit container
 st.markdown("""
 <style>
-:root{
-  /* LIGHT THEME DEFAULTS */
-  --accent:#2563eb;
-  --accent-2:#8b5cf6;
-  --accent-hover:#1e40af;
-  --text:#0f172a;            /* slate-900 */
-  --muted:#64748b;           /* slate-500 */
-  --surface:#ffffff;         /* card start */
-  --surface-2:#f8fafc;       /* card end */
-  --border:rgba(2,6,23,.08);
-  --ring: rgba(37,99,235,.35);
+/* Remove all extra backgrounds and ensure proper theme colors */
+.stApp {
+    background: transparent !important;
 }
-[data-theme="dark"]{
-  /* DARK THEME OVERRIDES */
-  --accent:#3b82f6;
-  --accent-2:#a78bfa;
-  --accent-hover:#1d4ed8;
-  --text:#e5e7eb;            /* slate-200 */
-  --muted:#94a3b8;           /* slate-400 */
-  --surface:#0f172a;         /* slate-900-ish */
-  --surface-2:#111827;       /* slate-800-ish */
-  --border:rgba(255,255,255,.08);
-  --ring: rgba(59,130,246,.45);
+.main, .block-container {
+    background: transparent !important;
+    padding: 0 !important;
 }
-
-/* Layout + ambient background */
-.block-container{ max-width:1280px; padding-top:1rem; position:relative; }
-.block-container::before{
-  content:""; position:fixed; inset:0; z-index:-2;
-  background:
-    radial-gradient(1200px 500px at -10% -20%, rgba(37,99,235,.12), transparent 60%),
-    radial-gradient(900px 400px at 110% -30%, rgba(139,92,246,.12), transparent 70%),
-    linear-gradient(180deg, var(--surface), var(--surface-2));
+iframe {
+    border: none !important;
 }
-.block-container::after{
-  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
-  background-image:
-    linear-gradient(rgba(2,6,23,.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(2,6,23,.05) 1px, transparent 1px);
-  background-size:22px 22px; opacity:.18;
-}
-
-/* Divider & headings */
-hr{ border:none; height:1px; background:linear-gradient(to right,transparent,#94a3b8,transparent); margin:2rem 0; }
-h2{ font-weight:900; letter-spacing:-.01em; }
-st.markdown("<div style='height:3rem'></div>", unsafe_allow_html=True)
-
-/* HERO (always visible, centered) */
-.hero{
-  text-align:center;
-  background:linear-gradient(180deg, var(--surface), var(--surface-2));
-  border:1px solid var(--border);
-  border-radius:24px;
-  padding:36px 28px;
-  box-shadow:0 10px 30px rgba(0,0,0,.08);
-  position:relative; overflow:hidden;
-}
-.hero::before{
-  content:""; position:absolute; inset:-1px; border-radius:24px;
-  background:conic-gradient(from 180deg, rgba(37,99,235,.22), rgba(139,92,246,.22), rgba(37,99,235,.22));
-  filter:blur(28px); opacity:.2;
-}
-.hero h1{
-  font-size:clamp(2rem,2.8vw,2.8rem);
-  font-weight:900; margin:.1rem 0 .35rem 0;
-  background:linear-gradient(90deg, var(--accent), var(--accent-2));
-  -webkit-background-clip:text; background-clip:text; color:transparent;
-}
-.hero p{ color:var(--muted); font-size:1.05rem; max-width:760px; margin:auto; }
-
-/* Toolbar */
-.toolbar{ margin-top:1.2rem; display:flex; justify-content:center; }
-.btn{
-  display:inline-flex; align-items:center; gap:.6rem; font-weight:800; color:#fff;
-  background:linear-gradient(90deg, var(--accent), var(--accent-2));
-  padding:.75rem 1.25rem; border-radius:14px; text-decoration:none; border:none;
-  box-shadow:0 12px 28px rgba(37,99,235,.3); transition:transform .12s ease, filter .12s ease;
-}
-.btn:hover{ transform:translateY(-2px); filter:brightness(1.08); }
-
-/* Workflow grid */
-.workflow{ margin-top:1rem; }
-.workflow [data-testid="stHorizontalBlock"]{ display:flex; flex-wrap:wrap; gap:1.6rem; }
-.workflow [data-testid="column"]{ flex:1 1 300px; min-width:280px; }
-
-/* Cards */
-.card{
-  position:relative;
-  background:linear-gradient(180deg, var(--surface), var(--surface-2));
-  border-radius:18px;
-  border:1px solid var(--border);
-  box-shadow:0 6px 20px rgba(0,0,0,.08);
-  padding:20px;
-  isolation:isolate;
-  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
-}
-.card:hover{ transform:translateY(-3px); box-shadow:0 20px 40px rgba(0,0,0,.15); border-color:rgba(2,6,23,.14); }
-.card::after{
-  content:""; position:absolute; inset:-1px; border-radius:18px;
-  background:linear-gradient(120deg, transparent, rgba(37,99,235,.35) 40%, rgba(139,92,246,.35) 60%, transparent);
-  filter:blur(18px); opacity:0; transition:.25s ease;
-}
-.card:hover::after{ opacity:1; }
-
-.badge{
-  display:inline-flex; align-items:center; justify-content:center;
-  height:26px; min-width:26px; padding:0 .5rem;
-  border-radius:10px; font-weight:900; color:var(--text);
-  background:linear-gradient(180deg, rgba(148,163,184,.28), rgba(148,163,184,.16));
-  border:1px solid var(--border);
-}
-.card-title{ font-weight:900; color:var(--text); font-size:1.1rem; }
-.card-desc{ color:var(--muted); font-size:.95rem; line-height:1.5; }
-
-/* CTA link */
-.stPageLink a{
-  display:block; width:100%; text-align:center;
-  padding:.75rem 1rem; border-radius:12px; margin-top:.6rem;
-  font-weight:800; background:linear-gradient(90deg,var(--accent),var(--accent-2));
-  color:#fff !important; text-decoration:none; box-shadow:0 10px 26px rgba(37,99,235,.3);
-  transition:transform .1s ease, filter .1s ease;
-}
-.stPageLink a:hover{ transform:translateY(-2px); filter:brightness(1.08); }
-
-/* Footer */
-.footer{ margin-top:2rem; padding:.8rem 0; color:var(--muted); text-align:center; border-top:1px dashed var(--border); }
-
-/* Avoid awkward line breaks */
-.card-title, .card-desc{ word-break: normal; overflow-wrap: break-word; hyphens: auto; }
 </style>
 """, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# HERO (centered, single button)
+# Modern Dashboard HTML
 # ──────────────────────────────────────────────────────────────────────────────
-st.markdown(
-    """
-    <div class="hero">
-      <h1>✨ EDA Dashboard</h1>
-      <p>Explore data, visualize distributions, analyze correlations, and run fairness &amp; drift checks.</p>
-      
+html_content = """
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
+               'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light theme (default) */
+body {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-tertiary: #94a3b8;
+  --border-color: #e2e8f0;
+  --card-bg: #ffffff;
+  --card-hover: #f8fafc;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --shadow: rgba(0, 0, 0, 0.1);
+  --shadow-hover: rgba(59, 130, 246, 0.15);
+}
+
+/* Dark theme */
+@media (prefers-color-scheme: dark) {
+  body {
+    --bg-primary: #0e1117;
+    --bg-secondary: #262730;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #94a3b8;
+    --border-color: #3d3d4d;
+    --card-bg: #262730;
+    --card-hover: #2e2e3e;
+    --accent: #60a5fa;
+    --accent-hover: #3b82f6;
+    --shadow: rgba(0, 0, 0, 0.3);
+    --shadow-hover: rgba(96, 165, 250, 0.2);
+  }
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+}
+
+/* Header Section */
+.header {
+  text-align: center;
+  margin-bottom: 4rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.header p {
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  max-width: 700px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* Section Headers */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 3rem 0 1.5rem 0;
+}
+
+.section-header h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.section-header .badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--accent);
+  color: white;
+  border-radius: 1rem;
+  font-weight: 600;
+}
+
+/* Workflow Cards */
+.workflow-grid {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.workflow-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  padding: 1.75rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  display: block;
+  position: relative;
+  overflow: hidden;
+}
+
+.workflow-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--accent);
+  transform: scaleY(0);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.workflow-card:hover {
+  transform: translateX(4px);
+  background: var(--card-hover);
+  border-color: var(--accent);
+  box-shadow: 0 8px 16px var(--shadow-hover);
+}
+
+.workflow-card:hover::before {
+  transform: scaleY(1);
+}
+
+.card-header {
+  margin-bottom: 0.75rem;
+}
+
+.card-title {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.card-description {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* Feature Cards */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin: 2rem 0;
+}
+
+.feature-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.feature-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px var(--shadow-hover);
+}
+
+.feature-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.feature-description {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* Future Work Section */
+.future-work {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--card-bg) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  padding: 2rem;
+  margin: 3rem 0;
+}
+
+.future-work h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.future-work ul {
+  list-style: none;
+  padding: 0;
+}
+
+.future-work li {
+  color: var(--text-secondary);
+  padding-left: 1.75rem;
+  margin-bottom: 0.75rem;
+  position: relative;
+  line-height: 1.7;
+}
+
+.future-work li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: bold;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.workflow-card {
+  animation: fadeIn 0.4s ease forwards;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 2rem 1rem;
+  }
+  
+  .header h1 {
+    font-size: 2rem;
+  }
+  
+  .header p {
+    font-size: 1rem;
+  }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h1>EDA Dashboard</h1>
+    <p>A comprehensive platform for exploring datasets, visualizing distributions, analyzing correlations, and running fairness & drift diagnostics.</p>
+  </div>
+
+  <!-- Workflow Section -->
+  <div class="section-header">
+    <h2>Analysis Tools</h2>
+  </div>
+
+  <div class="workflow-grid">
+    <div class="workflow-card" onclick="navigateTo('Explore')">
+      <div class="card-header">
+        <div class="card-title">Explore</div>
+      </div>
+      <div class="card-description">
+        Upload and preview your dataset. Filter columns, inspect datatypes, and view comprehensive statistical summaries.
+      </div>
     </div>
-    """,
-    unsafe_allow_html=True,
-)
-st.markdown("<hr>", unsafe_allow_html=True)
 
-# ──────────────────────────────────────────────────────────────────────────────
-# WORKFLOW
-# ──────────────────────────────────────────────────────────────────────────────
-st.markdown('<div id="workflow"></div>', unsafe_allow_html=True)
-st.subheader("🧭 Workflow Overview")
+    <div class="workflow-card" onclick="navigateTo('Distributions')">
+      <div class="card-header">
+        <div class="card-title">Distributions</div>
+      </div>
+      <div class="card-description">
+        Visualize feature distributions with histograms and density plots. Identify outliers and spot trends at a glance.
+      </div>
+    </div>
 
-st.markdown('<div class="workflow">', unsafe_allow_html=True)
-cols = st.columns(4, gap="large")
+    <div class="workflow-card" onclick="navigateTo('Correlation')">
+      <div class="card-header">
+        <div class="card-title">Correlation</div>
+      </div>
+      <div class="card-description">
+        Analyze relationships between features using correlation matrices and interactive heatmaps to understand feature interplay.
+      </div>
+    </div>
 
-steps = [
-    ("1", "Explore", "Upload and preview your dataset. Filter columns, inspect datatypes, and view summaries.", "pages/01_Explore.py"),
-    ("2", "Distributions", "Visualize feature distributions, histograms, and outliers to spot trends quickly.", "pages/02_Distributions.py"),
-    ("3", "Correlation", "Analyze relationships with correlation matrices/heatmaps to understand feature interplay.", "pages/03_Correlation.py"),
-    ("4", "Fairness & Drift", "Run parity checks, group metrics, and dataset drift diagnostics.", "pages/04_Fairness_&_Drift.py"),
-]
+    <div class="workflow-card" onclick="navigateTo('Fairness_&_Drift')">
+      <div class="card-header">
+        <div class="card-title">Fairness & Drift</div>
+      </div>
+      <div class="card-description">
+        Run parity checks across demographic groups, compute fairness metrics, and perform dataset drift diagnostics.
+      </div>
+    </div>
+  </div>
 
-for (num, title, desc, link), col in zip(steps, cols):
-    with col:
-        st.markdown(
-            f"""
-            <div class="card" tabindex="0" data-link="{link}">
-              <div class="badge">{num}</div>
-              <div class="card-title">{title}</div>
-              <div class="card-desc">{desc}</div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.page_link(link, label=f"Go to {title} ➜", use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+  <!-- Key Features -->
+  <div class="section-header">
+    <h2>Key Features</h2>
+  </div>
 
-st.markdown("</div>", unsafe_allow_html=True)
-st.markdown("<hr>", unsafe_allow_html=True)
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-title">Fast & Efficient</div>
+      <div class="feature-description">
+        Built on DuckDB for lightning-fast analytical queries on large datasets.
+      </div>
+    </div>
 
-# ──────────────────────────────────────────────────────────────────────────────
-# UPCOMING (Future Work)
-# ──────────────────────────────────────────────────────────────────────────────
-st.subheader("🌟 Future Work: Dataset Merging Functionality")
-st.write("""
-- Implement ability to combine multiple datasets for cross-dataset analysis  
-- Support various join types (inner, outer, left, right) to accommodate different analysis needs  
-- Enable users to map and align columns across different data sources
-""")
+    <div class="feature-card">
+      <div class="feature-title">Beautiful Visualizations</div>
+      <div class="feature-description">
+        Modern, interactive charts and plots powered by industry-standard libraries.
+      </div>
+    </div>
 
+    <div class="feature-card">
+      <div class="feature-title">Deep Insights</div>
+      <div class="feature-description">
+        Comprehensive statistical analysis and automated insight generation.
+      </div>
+    </div>
+  </div>
 
-# ──────────────────────────────────────────────────────────────────────────────
-# JS — Tilt hover + keyboard shortcuts (no reveal logic)
-# ──────────────────────────────────────────────────────────────────────────────
-st.markdown("""
+  <!-- Future Work -->
+  <div class="section-header">
+    <h2>Roadmap</h2>
+  </div>
+
+  <div class="future-work">
+    <h3>Planned Improvements</h3>
+    <ul>
+      <li>Dataset merging functionality for cross-dataset analysis</li>
+      <li>Support for multiple join types (inner, outer, left, right)</li>
+      <li>Migrate from direct database access to existing FastAPI backend</li>
+    </ul>
+  </div>
+
+</div>
+
 <script>
-(function(){
-  const root = parent.document;
-  const cards = Array.from(root.querySelectorAll('.card[data-link]'));
-
-  // Tilt hover (subtle)
-  cards.forEach(card=>{
-    let raf;
-    function tilt(e){
-      const r = card.getBoundingClientRect();
-      const x = (e.clientX - r.left)/r.width, y = (e.clientY - r.top)/r.height;
-      const rotX = (0.5 - y)*6, rotY = (x - 0.5)*6;
-      card.style.transform=`translateY(-3px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+function navigateTo(page) {
+  try {
+    const parent = window.parent.document;
+    const sidebarLinks = parent.querySelectorAll('[data-testid="stSidebarNav"] a');
+    
+    for (const link of sidebarLinks) {
+      const href = link.getAttribute('href') || '';
+      if (href.includes(page)) {
+        link.click();
+        break;
+      }
     }
-    function reset(){ card.style.transform=''; }
-    card.addEventListener('mousemove', e=>{ cancelAnimationFrame(raf); raf=requestAnimationFrame(()=>tilt(e)); });
-    card.addEventListener('mouseleave', ()=>{ cancelAnimationFrame(raf); reset(); });
-  });
-
-  // Keyboard shortcuts
-  let idx=0;
-  function focusCard(i){ if(!cards.length) return; idx=(i+cards.length)%cards.length; cards[idx].focus({preventScroll:false}); cards[idx].scrollIntoView({block:'nearest',behavior:'smooth'}); }
-  function openCard(i){ const a=cards[i]?.parentElement?.querySelector('.stPageLink a'); if(a) a.click(); }
-  focusCard(0);
-  root.addEventListener('keydown', e=>{
-    if(['INPUT','TEXTAREA'].includes((e.target||{}).tagName)) return;
-    if(e.key==='ArrowRight'){e.preventDefault();focusCard(idx+1);}
-    if(e.key==='ArrowLeft'){e.preventDefault();focusCard(idx-1);}
-    if(e.key==='Enter'){e.preventDefault();openCard(idx);}
-    if(['1','2','3','4'].includes(e.key)){e.preventDefault();const n=+e.key-1;if(cards[n])openCard(n);}
-  },{passive:false});
-})();
+  } catch (e) {
+    console.warn('Navigation error:', e);
+  }
+}
 </script>
-""", unsafe_allow_html=True)
+</body>
+</html>
+"""
+
+# Render the custom HTML
+components.html(html_content, height=1800, scrolling=True)
