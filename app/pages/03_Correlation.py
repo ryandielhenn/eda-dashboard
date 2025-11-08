@@ -35,18 +35,51 @@ if not dataset_choice or dataset_choice not in tables:
 st.markdown(f"### 📂 Active dataset: `{dataset_choice}`")
 
 # ───────────────────────────────────────────────
-# Load data directly from DuckDB
+# Get numeric columns from DuckDB schema
 # ───────────────────────────────────────────────
-df = load_table(dataset_choice)
+columns_query = f"DESCRIBE SELECT * FROM '{dataset_choice}'"
+columns_info = con.execute(columns_query).df()
 
-# Work with numeric columns only
-num_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+# Filter to numeric types
+numeric_types = ['BIGINT', 'INTEGER', 'DOUBLE', 'FLOAT', 'DECIMAL', 
+                 'HUGEINT', 'SMALLINT', 'TINYINT', 'UBIGINT', 
+                 'UINTEGER', 'USMALLINT', 'UTINYINT', 'REAL']
+
+num_cols = columns_info[columns_info['column_type'].isin(numeric_types)]['column_name'].tolist()
+
 if len(num_cols) < 2:
     st.caption("Need at least two numeric columns for a correlation matrix.")
     st.stop()
 
+# ───────────────────────────────────────────────
+# Fetch ONLY numeric columns and compute correlation
+# ───────────────────────────────────────────────
 with st.spinner("Computing Pearson correlation…"):
-    corr = df[num_cols].corr(numeric_only=True, method="pearson")
+    # Build query to compute all correlations in DuckDB
+    corr_calcs = []
+    for col in num_cols:
+        corr_calcs.append(f"CORR(\"{col}\", \"{col}\") as \"{col}_{col}\"")  # Diagonal (always 1.0)
+        for other_col in num_cols:
+            if col < other_col:  # Avoid duplicates
+                corr_calcs.append(f"CORR(\"{col}\", \"{other_col}\") as \"{col}_{other_col}\"")
+    
+    query = f"""
+    SELECT {', '.join(corr_calcs)}
+    FROM '{dataset_choice}'
+    """
+    
+    corr_results = con.execute(query).df()
+    
+    # Reconstruct symmetric correlation matrix
+    corr = pd.DataFrame(np.eye(len(num_cols)), index=num_cols, columns=num_cols)
+    
+    for col in num_cols:
+        corr.loc[col, col] = 1.0
+        for other_col in num_cols:
+            if col < other_col:
+                val = corr_results[f"{col}_{other_col}"].iloc[0]
+                corr.loc[col, other_col] = val
+                corr.loc[other_col, col] = val
 
 # ───────────────────────────────────────────────
 # Heatmap
