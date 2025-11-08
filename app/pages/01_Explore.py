@@ -9,11 +9,14 @@ from storage.duck import ingest_csv, list_datasets, sql
 DATA_PROC = "data/processed"
 os.makedirs(DATA_PROC, exist_ok=True)
 
+
 def sanitize_id(name: str) -> str:
     return "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in name)
 
+
 def quote_indent(col: str) -> str:
     return '"' + col.replace('"', '""') + '"'
+
 
 def render_kpis_from_duckdb(tbl: str):
     # total rows
@@ -26,11 +29,19 @@ def render_kpis_from_duckdb(tbl: str):
     colnames = schema_df["column_name"].tolist() if not schema_df.empty else []
 
     # numeric columns
-    num_cols = int(
-        schema_df["column_type"]
-        .str.contains(r"(?:INT|DECIMAL|DOUBLE|FLOAT|REAL|HUGEINT|SMALLINT|TINYINT)", case=False, regex=True)
-        .sum()
-    ) if not schema_df.empty else 0
+    num_cols = (
+        int(
+            schema_df["column_type"]
+            .str.contains(
+                r"(?:INT|DECIMAL|DOUBLE|FLOAT|REAL|HUGEINT|SMALLINT|TINYINT)",
+                case=False,
+                regex=True,
+            )
+            .sum()
+        )
+        if not schema_df.empty
+        else 0
+    )
 
     # % rows with ANY missing value
     if total_rows > 0 and colnames:
@@ -42,12 +53,14 @@ def render_kpis_from_duckdb(tbl: str):
     else:
         missing_any_pct = 0.0
 
-    kpi_grid({
-        "Rows": total_rows,
-        "Columns": len(colnames),
-        "Numeric cols": num_cols,
-        "Missing % (any row)": missing_any_pct,
-    })
+    kpi_grid(
+        {
+            "Rows": total_rows,
+            "Columns": len(colnames),
+            "Numeric cols": num_cols,
+            "Missing % (any row)": missing_any_pct,
+        }
+    )
 
 
 inject_css()
@@ -68,6 +81,7 @@ uploaded = st.file_uploader(
     "Upload CSV or ZIP (containing CSV)", type=["csv", "zip"], key=f"upload_{nonce}"
 )
 
+
 def _ingest_csv(csv_path: str, dataset_basename: str):
     """Ingest CSV from disk path"""
     with spinner("Ingesting into DuckDB…"):
@@ -75,27 +89,30 @@ def _ingest_csv(csv_path: str, dataset_basename: str):
     # Update session state and rerun
     st.session_state["dataset_choice"] = tbl
     st.session_state["uploader_nonce"] = nonce + 1
-    st.session_state["flash"] = f"Ingested **{dataset_basename}** as `{tbl}` ({n_rows}×{n_cols})."
+    st.session_state["flash"] = (
+        f"Ingested **{dataset_basename}** as `{tbl}` ({n_rows}×{n_cols})."
+    )
     st.rerun()
+
 
 if uploaded is not None:
     if uploaded.name.lower().endswith(".csv"):
         dataset_id = sanitize_id(os.path.splitext(uploaded.name)[0])
-        
+
         # Save uploaded file to disk first
         csv_path = os.path.join(DATA_PROC, f"{dataset_id}.csv")
-        with open(csv_path, 'wb') as f:
+        with open(csv_path, "wb") as f:
             f.write(uploaded.getbuffer())
-        
+
         # Ingest from disk
         _ingest_csv(csv_path, dataset_id)
-        
+
     elif uploaded.name.lower().endswith(".zip"):
         import zipfile
-        
+
         with zipfile.ZipFile(uploaded, "r") as zf:
             csvs = [f for f in zf.namelist() if f.lower().endswith(".csv")]
-        
+
         if not csvs:
             st.error("No CSV file found inside the ZIP.")
         else:
@@ -104,11 +121,11 @@ if uploaded is not None:
                 # Extract CSV from ZIP to disk
                 with zipfile.ZipFile(uploaded, "r") as zf:
                     csv_content = zf.read(pick)
-                
+
                 dataset_id = sanitize_id(os.path.splitext(os.path.basename(pick))[0])
                 csv_path = os.path.join(DATA_PROC, f"{dataset_id}.csv")
-                
-                with open(csv_path, 'wb') as f:
+
+                with open(csv_path, "wb") as f:
                     f.write(csv_content)
                 _ingest_csv(csv_path, dataset_id)
 
@@ -137,14 +154,13 @@ if "dataset_choice" not in st.session_state:
 # Current active
 current_tbl = st.session_state["dataset_choice"]
 current_pretty = real_to_pretty.get(current_tbl, current_tbl.replace("ds_", "", 1))
-default_index = pretty_names.index(current_pretty) if current_pretty in pretty_names else 0
+default_index = (
+    pretty_names.index(current_pretty) if current_pretty in pretty_names else 0
+)
 
 # Stable dropdown that doesn’t reset other pages
 choice_pretty = st.selectbox(
-    "Select dataset",
-    pretty_names,
-    index=default_index,
-    key="dataset_dropdown"
+    "Select dataset", pretty_names, index=default_index, key="dataset_dropdown"
 )
 
 tbl = pretty_to_real[choice_pretty]
@@ -173,7 +189,7 @@ st.markdown("##### Preview")
 n = st.slider("Rows to preview", 10, 500, 25, key="preview_rows")
 try:
     prev_cols, prev_rows = sql(f"SELECT * FROM {tbl} LIMIT {n}")
-    st.dataframe(pd.DataFrame(prev_rows, columns=prev_cols), width='stretch')
+    st.dataframe(pd.DataFrame(prev_rows, columns=prev_cols), width="stretch")
     st.caption(f"Showing first {len(prev_rows)} rows")
 except Exception as e:
     st.error(f"Preview failed: {e}")
@@ -182,7 +198,7 @@ except Exception as e:
 with st.expander("Schema", expanded=False):
     try:
         prev_cols, prev_rows = sql(f"SELECT * FROM {tbl} LIMIT {n}")
-        st.dataframe(pd.DataFrame(prev_rows, columns=prev_cols), width='stretch')
+        st.dataframe(pd.DataFrame(prev_rows, columns=prev_cols), width="stretch")
         st.caption(f"Showing first {len(prev_rows)} rows")
     except Exception as e:
         st.error(f"Preview failed for `{tbl}`: {e}")

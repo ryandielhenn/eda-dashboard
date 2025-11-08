@@ -1,16 +1,9 @@
 # app/utils.py
-import sys
-import os
-
-# Add project root to path
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-
 import streamlit as st
 import pandas as pd
 from contextlib import contextmanager
 from storage.duck import connect
+
 
 def format_pct(x: float) -> str:
     try:
@@ -18,8 +11,15 @@ def format_pct(x: float) -> str:
     except Exception:
         return "—"
 
+
 def severity_badge(level: str) -> str:
-    return {"ok": "🟢 OK", "info": "🔵 Info", "mild": "🟠 Mild", "severe": "🔴 Severe"}.get(level, "🟢 OK")
+    return {
+        "ok": "🟢 OK",
+        "info": "🔵 Info",
+        "mild": "🟠 Mild",
+        "severe": "🔴 Severe",
+    }.get(level, "🟢 OK")
+
 
 def dataset_selector(label="Select dataset"):
     """Shared dataset dropdown across all pages"""
@@ -45,13 +45,17 @@ def dataset_selector(label="Select dataset"):
 
     return st.session_state["dataset_choice"]
 
+
 def _hex_to_rgba(hex_color: str, alpha: float) -> str:
     """Convert #RRGGBB to rgba(r,g,b,a)."""
     h = hex_color.lstrip("#")
     r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
     return f"rgba({r},{g},{b},{alpha})"
+
+
 def inject_css():
     import streamlit as st
+
     st.markdown(
         """
         <style>
@@ -105,21 +109,26 @@ def inject_css():
         """,
         unsafe_allow_html=True,
     )
+
+
 def kpi_grid(items: dict[str, str | int | float]):
     st.markdown(
-        '<div class="kpi">' + "".join(
+        '<div class="kpi">'
+        + "".join(
             f'<div class="card"><div class="label">{k}</div><div class="value">{v}</div></div>'
             for k, v in items.items()
-        ) + '</div>',
+        )
+        + "</div>",
         unsafe_allow_html=True,
     )
+
 
 @st.cache_data(show_spinner=False)
 def load_parquet(path: str) -> pd.DataFrame:
     return pd.read_parquet(path)
 
+
 @contextmanager
 def spinner(msg: str):
     with st.spinner(msg):
         yield
-

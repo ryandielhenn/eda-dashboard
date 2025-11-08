@@ -16,7 +16,7 @@ env/
 ENV/
 
 # --- Jupyter ---
-.ipynb_checkpoints/        # Ignore auto checkpoints
+**/.ipynb_checkpoints/        # Ignore auto checkpoints
 *.nbconvert.ipynb          # Ignore exported notebooks
 .profile_default/          # Ignore Jupyter runtime profiles
 .jupyter/                  # Local Jupyter config

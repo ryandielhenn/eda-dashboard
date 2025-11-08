@@ -5,13 +5,17 @@ import streamlit.components.v1 as components
 try:
     from utils import inject_css
 except Exception:
-    inject_css = lambda: None
+
+    def inject_css():
+        pass
+
 
 st.set_page_config(page_title="EDA Dashboard", layout="wide", page_icon="📊")
 inject_css()
 
 # Custom styling for Streamlit container
-st.markdown("""
+st.markdown(
+    """
 <style>
 /* Remove all extra backgrounds and ensure proper theme colors */
 .stApp {
@@ -25,7 +29,9 @@ iframe {
     border: none !important;
 }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Modern Dashboard HTML

@@ -1,1 +1,36 @@
-'''Project metadata and dependencies (or use requirements.txt).'''
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eda-dashboard"
+version = "0.1.0"
+description = "EDA Dashboard with Streamlit and DuckDB for data analysis"
+authors = [
+    {name = "Ryan Dielhenn"},
+    {name = "Joe Jimenez"},
+    {name = "Roshan Roy Suja"}
+]
+requires-python = ">=3.8"
+dependencies = [
+    "streamlit>=1.28.0",
+    "duckdb>=0.9.0",
+    "pandas>=2.0.0",
+    "plotly>=5.17.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "api*", "analytics*", "storage*"]
+exclude = ["data*", "diagrams*", "notebooks*"]
