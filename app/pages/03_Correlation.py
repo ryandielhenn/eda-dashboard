@@ -2,13 +2,12 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 import plotly.express as px
+import requests
 
 # Utilities and helpers
 from utils import inject_css, dataset_selector
-from storage.duck import connect, get_tables
 
-
-DUCKDB_PATH = "data/duckdb/eda.duckdb"
+API_BASE = "http://api:8000"  # or "http://api:8000" in Docker
 
 inject_css()
 st.title("03 · Correlation")
@@ -16,87 +15,45 @@ st.title("03 · Correlation")
 # ───────────────────────────────────────────────
 # Get active dataset (synced with Explore)
 # ───────────────────────────────────────────────
-dataset_choice = st.session_state.get("dataset_choice")
 dataset_choice = dataset_selector()
-# Check DuckDB tables
-con = connect()
-tables = get_tables()
 
-if not tables:
-    st.info("No datasets found. Go to **01 · Explore** and upload a CSV.")
-    st.stop()
-
-# Self-heal if dataset not selected or stale
-if not dataset_choice or dataset_choice not in tables:
-    dataset_choice = tables[-1]
-    st.session_state["dataset_choice"] = dataset_choice
+# Remove ds_ prefix for display
+dataset_id = dataset_choice.replace("ds_", "")
 
 st.markdown(f"### 📂 Active dataset: `{dataset_choice}`")
 
 # ───────────────────────────────────────────────
-# Get numeric columns from DuckDB schema
-# ───────────────────────────────────────────────
-columns_query = f"DESCRIBE SELECT * FROM '{dataset_choice}'"
-columns_info = con.execute(columns_query).df()
-
-# Filter to numeric types
-numeric_types = [
-    "BIGINT",
-    "INTEGER",
-    "DOUBLE",
-    "FLOAT",
-    "DECIMAL",
-    "HUGEINT",
-    "SMALLINT",
-    "TINYINT",
-    "UBIGINT",
-    "UINTEGER",
-    "USMALLINT",
-    "UTINYINT",
-    "REAL",
-]
-
-num_cols = columns_info[columns_info["column_type"].isin(numeric_types)][
-    "column_name"
-].tolist()
-
-if len(num_cols) < 2:
-    st.caption("Need at least two numeric columns for a correlation matrix.")
-    st.stop()
-
-# ───────────────────────────────────────────────
-# Fetch ONLY numeric columns and compute correlation
+# Fetch correlation matrix from API
 # ───────────────────────────────────────────────
 with st.spinner("Computing Pearson correlation…"):
-    # Build query to compute all correlations in DuckDB
-    corr_calcs = []
-    for col in num_cols:
-        corr_calcs.append(
-            f'CORR("{col}", "{col}") as "{col}_{col}"'
-        )  # Diagonal (always 1.0)
-        for other_col in num_cols:
-            if col < other_col:  # Avoid duplicates
-                corr_calcs.append(
-                    f'CORR("{col}", "{other_col}") as "{col}_{other_col}"'
+    try:
+        response = requests.get(f"{API_BASE}/datasets/{dataset_id}/correlation")
+
+        if response.status_code != 200:
+            error_detail = response.json().get("detail", "Unknown error")
+            if "at least 2 numeric columns" in error_detail:
+                st.caption(
+                    "Need at least two numeric columns for a correlation matrix."
                 )
+            else:
+                st.error(f"API Error: {error_detail}")
+            st.stop()
 
-    query = f"""
-    SELECT {', '.join(corr_calcs)}
-    FROM '{dataset_choice}'
-    """
+        data = response.json()
+        corr_dict = data["correlation"]
+        num_cols = data["columns"]
 
-    corr_results = con.execute(query).df()
+        # Convert dict back to DataFrame
+        corr = pd.DataFrame(corr_dict)
 
-    # Reconstruct symmetric correlation matrix
-    corr = pd.DataFrame(np.eye(len(num_cols)), index=num_cols, columns=num_cols)
-
-    for col in num_cols:
-        corr.loc[col, col] = 1.0
-        for other_col in num_cols:
-            if col < other_col:
-                val = corr_results[f"{col}_{other_col}"].iloc[0]
-                corr.loc[col, other_col] = val
-                corr.loc[other_col, col] = val
+    except requests.exceptions.ConnectionError:
+        st.error(
+            "Cannot connect to API. Make sure it's running on http://localhost:8000"
+        )
+        st.stop()
+    except Exception as e:
+        st.error(f"Failed to fetch correlation: {e}")
+        st.stop()
 
 # ───────────────────────────────────────────────
 # Heatmap

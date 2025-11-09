@@ -5,7 +5,7 @@ WORKDIR /app
 # Copy application code
 COPY pyproject.toml .
 COPY . .
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir .
 
 # Expose ports
 EXPOSE 8000 8501

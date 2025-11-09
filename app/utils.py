@@ -2,7 +2,6 @@
 import streamlit as st
 import pandas as pd
 from contextlib import contextmanager
-from storage.duck import connect
 
 
 def format_pct(x: float) -> str:
@@ -22,10 +21,18 @@ def severity_badge(level: str) -> str:
 
 
 def dataset_selector(label="Select dataset"):
-    """Shared dataset dropdown across all pages"""
-    con = connect()
-    tables = [r[0] for r in con.execute("SHOW TABLES").fetchall()]
-    tables = [t for t in tables if t != "datasets"]
+    """Shared dataset dropdown across all pages - uses API"""
+    import requests
+
+    API_BASE = "http://api:8000"
+
+    try:
+        response = requests.get(f"{API_BASE}/datasets")
+        datasets = response.json()["datasets"]
+        tables = ["ds_" + d["dataset_id"] for d in datasets]
+    except Exception as e:
+        st.warning(f"Cannot connect to API: {e}")
+        st.stop()
 
     if not tables:
         st.warning("No datasets found. Go to **01 · Explore** to upload a CSV.")
