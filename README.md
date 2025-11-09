@@ -90,22 +90,3 @@ Planned capabilities include:
 ![Architecure](diagrams/diagram.png)
 
 ---
-
-## Roadmap
-
-### MVP (Batch-first)
-
-* Upload dataset (CSV/Parquet)
-* Automated profiling (summary stats, distributions, correlations)
-* Interactive visualizations (via Streamlit + Plotly)
-* Bias/fairness checks with [Evidently](https://github.com/evidentlyai/evidently) & [Fairlearn](https://github.com/fairlearn/fairlearn)
-* Store metrics in DuckDB
-* Streamlit dashboard with charts and reports
-
-### Stretch Goals
-
-* Background jobs for “live” refresh (microbatch or file-watcher)
-* Thin FastAPI service for cached results and long-running tasks
-* Export reproducible reports
-
-

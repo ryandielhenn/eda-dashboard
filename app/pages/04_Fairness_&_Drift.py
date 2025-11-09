@@ -110,10 +110,6 @@ with tab_fair:
             dp = float(grp["selection_rate"].max() - grp["selection_rate"].min())
             st.success(f"Demographic parity difference: **{dp:.3f}**")
             st.dataframe(grp, hide_index=True)
-            st.caption(
-                "This demo mimics Fairlearn's selection rate by group; in a full version, "
-                "we would compute additional fairness metrics via Fairlearn/Evidently."
-            )
         else:
             st.warning("No data to compute fairness metrics.")
     else:
