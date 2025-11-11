@@ -4,8 +4,8 @@ import pandas as pd
 import requests
 
 from utils import inject_css, kpi_grid, spinner
+from config import API_BASE
 
-API_BASE = "http://api:8000"
 DATA_PROC = "data/processed"
 os.makedirs(DATA_PROC, exist_ok=True)
 

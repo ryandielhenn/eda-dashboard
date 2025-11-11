@@ -1,4 +1,5 @@
 # app/utils.py
+import os
 import streamlit as st
 import pandas as pd
 from contextlib import contextmanager
@@ -24,7 +25,7 @@ def dataset_selector(label="Select dataset"):
     """Shared dataset dropdown across all pages - uses API"""
     import requests
 
-    API_BASE = "http://api:8000"
+    API_BASE = os.getenv("API_BASE_URL", "http://api:8000")
 
     try:
         response = requests.get(f"{API_BASE}/datasets")

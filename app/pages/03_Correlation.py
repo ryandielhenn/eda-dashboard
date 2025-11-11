@@ -3,11 +3,10 @@ import numpy as np
 import streamlit as st
 import plotly.express as px
 import requests
+from config import API_BASE
 
 # Utilities and helpers
 from utils import inject_css, dataset_selector
-
-API_BASE = "http://api:8000"  # or "http://api:8000" in Docker
 
 inject_css()
 st.title("03 · Correlation")

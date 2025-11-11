@@ -1,2 +1,60 @@
 # .dockerignore
+# Data directories
 data/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Notebooks (if not needed in container)
+notebooks/
+
+# Documentation and diagrams
+diagrams/
+*.md
+README.md
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# DuckDB database files (but keep the storage/ Python module)
+*.duckdb
+*.duckdb.wal

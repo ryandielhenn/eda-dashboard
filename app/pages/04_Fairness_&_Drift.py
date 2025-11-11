@@ -1,10 +1,9 @@
 import pandas as pd
 import streamlit as st
 import requests
+from config import API_BASE
 
 from utils import inject_css, dataset_selector
-
-API_BASE = "http://api:8000"
 
 inject_css()
 st.title("04 · Fairness & Drift")

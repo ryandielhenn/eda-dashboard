@@ -15,12 +15,10 @@ The dashboard is designed to:
 - No Python installation or virtual environment needed!
 
 #### Quick Start with Docker (Recommended)
-
 Start both the API backend and Streamlit frontend:
 ```bash
 docker-compose up
 ```
-
 Access the application:
 - **Frontend (Streamlit):** http://localhost:8501
 - **API Backend:** http://localhost:8000
@@ -47,27 +45,30 @@ Install dependencies and set up the project:
 pip install -e .
 ```
 
-**Option 1: Streamlit Only**
-```bash
-streamlit run app/Dashboard.py
-```
-Access at http://localhost:8501
-
-**Option 2: With FastAPI Backend**
+**Running Locally:**
 
 Terminal 1 - Start API:
 ```bash
 uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Terminal 2 - Start Frontend:
+Terminal 2 - Configure API URL and start frontend:
 ```bash
+cp .env.example .env
+```
+
+Edit .env to set your API URL then start the frontend
+```
+echo API_BASE_URL="http://127.0.0.1:8000" > .env
 streamlit run app/Dashboard.py
 ```
 
+Access:
 - API: http://127.0.0.1:8000
 - Frontend: http://localhost:8501
 - API Docs: http://127.0.0.1:8000/docs
+
+**Note:** The `API_BASE_URL` environment variable tells the frontend where to find the API. By default, it uses `http://api:8000` (for Docker), so you must set it to `http://127.0.0.1:8000` when running locally.
 
 ---
 

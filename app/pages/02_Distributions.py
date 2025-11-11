@@ -1,6 +1,7 @@
 import streamlit as st
 import plotly.express as px
 import requests
+from config import API_BASE
 
 from utils import (
     inject_css,
@@ -10,7 +11,6 @@ from utils import (
     severity_badge,
 )
 
-API_BASE = "http://api:8000"
 
 inject_css()
 st.title("02 · Distributions")
