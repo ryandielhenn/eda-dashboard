@@ -88,7 +88,7 @@ def ingest_csv(csv_path: str, dataset_id: str):
 
     with _lock:
         con.execute(
-            f"CREATE OR REPLACE TABLE {tbl} AS SELECT * FROM read_csv_auto('{csv_path}')"
+            f"CREATE OR REPLACE TABLE {tbl} AS SELECT * FROM read_csv_auto('{csv_path}', sample_size=-1)"
         )
         n_rows = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
         n_cols = len(con.execute(f"SELECT * FROM {tbl} LIMIT 0").description or [])

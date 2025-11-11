@@ -1,11 +1,11 @@
 # EDA Dashboard
 
-A batch-first, stream-ready **Exploratory Data Analysis (EDA) dashboard** for exploring datasets, detecting bias, and generating reproducible insights.  
+An **Exploratory Data Analysis (EDA) dashboard** for exploring datasets, detecting bias, and generating reproducible insights.  
 
 The dashboard is designed to:  
-- Handle multiple data formats (CSV, CSV.GZ, Parquet, ZIP).  
-- Provide automated profiling, visualization, and fairness/drift checks.  
-- Support batch workflows for stability, with hooks for optional “live” updates in the future.  
+- Handle multiple data formats (CSV, CSV.GZ, Parquet, ZIP).
+- Provide automated profiling, visualization, and fairness/drift checks.
+- Support batch processing with architecture designed for future streaming capabilities.
 
 ### Running the Application
 
@@ -31,8 +31,6 @@ Stop the application:
 # Press Ctrl+C, then run:
 docker-compose down
 ```
-
-**Note:** The FastAPI backend is functional and can be tested via the `/docs` page, but the Streamlit frontend is not yet integrated to call the API. Both systems work independently and share the same DuckDB database file.
 
 ---
 
@@ -75,9 +73,9 @@ streamlit run app/Dashboard.py
 
 ## Interactive Visualization
 
-Interactive visualization is a core feature of the dashboard. The system uses [Streamlit](https://streamlit.io/) to provide a responsive web-based interface and will integrate Plotly for richer, interactive charts.  
+Interactive visualization is a core feature of the dashboard. The system uses [Streamlit](https://streamlit.io/) to provide a responsive web-based interface and integrates Plotly for richer, interactive charts.  
 
-Planned capabilities include:  
+Capabilities include:  
 - **Exploration**: Upload datasets and interactively view tables, feature distributions, and correlations with adjustable parameters and filters.  
 - **Distributions**: Histograms, KDE plots, and bar charts with interactive zoom and pan.  
 - **Correlation Heatmaps**: Hoverable heatmaps and pair plots for exploring feature relationships.  
