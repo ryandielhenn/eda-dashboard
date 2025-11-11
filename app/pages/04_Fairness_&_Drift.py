@@ -18,16 +18,31 @@ st.caption(f"📂 Active dataset: `{dataset_choice}`")
 try:
     response = requests.get(f"{API_BASE}/datasets/{dataset_id}/schema")
     schema_data = response.json()["schema"]
-    
-    numeric_types = ["BIGINT", "INTEGER", "DOUBLE", "FLOAT", "DECIMAL", "HUGEINT", 
-                     "SMALLINT", "TINYINT", "UBIGINT", "UINTEGER", "USMALLINT", "UTINYINT", "REAL"]
-    
+
+    numeric_types = [
+        "BIGINT",
+        "INTEGER",
+        "DOUBLE",
+        "FLOAT",
+        "DECIMAL",
+        "HUGEINT",
+        "SMALLINT",
+        "TINYINT",
+        "UBIGINT",
+        "UINTEGER",
+        "USMALLINT",
+        "UTINYINT",
+        "REAL",
+    ]
+
     num_cols = [
-        col["column_name"] for col in schema_data
+        col["column_name"]
+        for col in schema_data
         if col["column_type"].upper() in numeric_types
     ]
     cat_cols = [
-        col["column_name"] for col in schema_data
+        col["column_name"]
+        for col in schema_data
         if col["column_type"].upper() not in numeric_types
     ]
 except Exception as e:
@@ -48,13 +63,13 @@ with tab_fair:
     if num_cols and tcol:
         # Get median from API (could add dedicated endpoint, for now use preview)
         try:
-            preview_response = requests.get(
-                f"{API_BASE}/datasets/{dataset_id}/preview"
-            )
+            preview_response = requests.get(f"{API_BASE}/datasets/{dataset_id}/preview")
             preview_data = preview_response.json()
-            df_sample = pd.DataFrame(preview_data["data"], columns=preview_data["columns"])
+            df_sample = pd.DataFrame(
+                preview_data["data"], columns=preview_data["columns"]
+            )
             median_val = df_sample[tcol].median()
-        except:
+        except (requests.exceptions.RequestException, ValueError, KeyError, TypeError):
             median_val = 0.0
 
         with c2:
@@ -74,7 +89,7 @@ with tab_fair:
 
     if num_cols and cat_cols and tcol and sattr:
         operator = ">" if ">" in positive_def else "<="
-        
+
         with st.spinner("Computing fairness metrics..."):
             try:
                 response = requests.get(
@@ -83,20 +98,20 @@ with tab_fair:
                         "target_column": tcol,
                         "threshold": thresh,
                         "comparison_operator": operator,
-                        "sensitive_attribute": sattr
-                    }
+                        "sensitive_attribute": sattr,
+                    },
                 )
-                
+
                 if response.status_code == 200:
                     data = response.json()
                     dp = data["demographic_parity_difference"]
                     grp = pd.DataFrame(data["group_statistics"])
-                    
+
                     st.success(f"Demographic parity difference: **{dp:.3f}**")
                     st.dataframe(grp, hide_index=True)
                 else:
                     st.warning("No data to compute fairness metrics.")
-                    
+
             except Exception as e:
                 st.error(f"Failed to compute fairness: {e}")
     else:
@@ -113,7 +128,7 @@ with tab_drift:
         datasets_response = requests.get(f"{API_BASE}/datasets")
         all_datasets = datasets_response.json()["datasets"]
         all_tables = [f"ds_{d['dataset_id']}" for d in all_datasets]
-    except:
+    except (requests.exceptions.RequestException, ValueError, KeyError, TypeError):
         st.error("Failed to fetch datasets")
         st.stop()
 
@@ -131,9 +146,13 @@ with tab_drift:
         try:
             ref_schema_response = requests.get(f"{API_BASE}/datasets/{ref_id}/schema")
             cur_schema_response = requests.get(f"{API_BASE}/datasets/{cur_id}/schema")
-            
-            ref_cols = set([col["column_name"] for col in ref_schema_response.json()["schema"]])
-            cur_cols = set([col["column_name"] for col in cur_schema_response.json()["schema"]])
+
+            ref_cols = set(
+                [col["column_name"] for col in ref_schema_response.json()["schema"]]
+            )
+            cur_cols = set(
+                [col["column_name"] for col in cur_schema_response.json()["schema"]]
+            )
             shared_cols = list(ref_cols.intersection(cur_cols))
         except Exception as e:
             st.error(f"Failed to get schemas: {e}")
@@ -160,19 +179,18 @@ with tab_drift:
                     try:
                         response = requests.get(
                             f"{API_BASE}/datasets/{ref_id}/drift/{cur_id}",
-                            params={
-                                "columns": cols,
-                                "n_bins": n_bins
-                            }
+                            params={"columns": cols, "n_bins": n_bins},
                         )
-                        
+
                         if response.status_code == 200:
                             data = response.json()
                             psi_tbl = pd.DataFrame(data["psi_metrics"])
-                            
+
                             st.dataframe(psi_tbl, hide_index=True)
-                            st.caption("Rule of thumb: PSI > 0.2 indicates significant shift (⚠️).")
-                            
+                            st.caption(
+                                "Rule of thumb: PSI > 0.2 indicates significant shift (⚠️)."
+                            )
+
                             # Download CSV (exclude the symbol 'flag' column from export)
                             export_df = psi_tbl.drop(columns=["flag"], errors="ignore")
                             csv = export_df.to_csv(index=False).encode("utf-8")
@@ -183,7 +201,9 @@ with tab_drift:
                                 mime="text/csv",
                             )
                         else:
-                            st.error(f"Drift computation failed: {response.json().get('detail', 'Unknown error')}")
-                            
+                            st.error(
+                                f"Drift computation failed: {response.json().get('detail', 'Unknown error')}"
+                            )
+
                     except Exception as e:
                         st.error(f"Failed to compute drift: {e}")
