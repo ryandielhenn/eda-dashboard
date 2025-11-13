@@ -16,7 +16,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 from storage.duck import (
-    ingest_csv,
+    ingest_file,
     list_datasets,
     get_tables,
     get_schema,
@@ -136,7 +136,7 @@ async def upload_dataset(file: UploadFile = File(...)):
                 f.write(content)
 
             # Ingest CSV directly into DuckDB
-            table_name, n_rows, n_cols = ingest_csv(str(csv_path), dataset_id)
+            table_name, n_rows, n_cols = ingest_file(str(csv_path), dataset_id)
 
             return {
                 "success": True,

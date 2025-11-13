@@ -51,45 +51,22 @@ def table_name(dataset_id: str) -> str:
         ch if ch.isalnum() or ch == "_" else "_" for ch in dataset_id
     )
 
-
-def ingest_parquet(parquet_path: str, dataset_id: str):
-    """Ingest parquet with thread safety."""
-    init_db()
-    con = connect()
-    tbl = table_name(dataset_id)
-
-    with _lock:
-        con.execute(
-            f"CREATE OR REPLACE TABLE {tbl} AS SELECT * FROM read_parquet('{parquet_path}')"
-        )
-        n_rows = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
-        n_cols = len(con.execute(f"SELECT * FROM {tbl} LIMIT 0").description or [])
-        con.execute(
-            """
-            INSERT INTO datasets(dataset_id, path, n_rows, n_cols, last_ingested)
-            VALUES (?, ?, ?, ?, now())
-            ON CONFLICT(dataset_id) DO UPDATE SET
-                path = excluded.path,
-                n_rows = excluded.n_rows,
-                n_cols = excluded.n_cols,
-                last_ingested = now();
-        """,
-            [dataset_id, parquet_path, n_rows, n_cols],
-        )
-
-    return tbl, n_rows, n_cols
-
-
-def ingest_csv(csv_path: str, dataset_id: str):
+def ingest_file(file_path: str, dataset_id: str):
     """Ingest CSV directly with thread safety."""
     init_db()
     con = connect()
     tbl = table_name(dataset_id)
 
     with _lock:
-        con.execute(
-            f"CREATE OR REPLACE TABLE {tbl} AS SELECT * FROM read_csv_auto('{csv_path}', sample_size=-1)"
-        )
+        if file_path.endswith(".csv"):
+            con.execute(
+                f"CREATE OR REPLACE TABLE {tbl} AS SELECT * FROM read_csv_auto('{file_path}', sample_size=-1)"
+            )
+        elif file_path.endswith(".parquet"):
+            con.execute(
+                f"CREATE OR REPLACE TABLE {tbl} AS SELECT * FROM read_parquet('{file_path}')"
+            )
+
         n_rows = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
         n_cols = len(con.execute(f"SELECT * FROM {tbl} LIMIT 0").description or [])
         con.execute(
@@ -102,7 +79,7 @@ def ingest_csv(csv_path: str, dataset_id: str):
                 n_cols = excluded.n_cols,
                 last_ingested = now();
         """,
-            [dataset_id, csv_path, n_rows, n_cols],
+            [dataset_id, file_path, n_rows, n_cols],
         )
 
     return tbl, n_rows, n_cols
