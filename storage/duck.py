@@ -51,8 +51,9 @@ def table_name(dataset_id: str) -> str:
         ch if ch.isalnum() or ch == "_" else "_" for ch in dataset_id
     )
 
+
 def ingest_file(file_path: str, dataset_id: str):
-    """Ingest CSV directly with thread safety."""
+    """Ingest CSV/Parquet directly with thread safety."""
     init_db()
     con = connect()
     tbl = table_name(dataset_id)

@@ -29,7 +29,9 @@ if flash:
 # ───────────────────────────────
 nonce = st.session_state.get("uploader_nonce", 0)
 uploaded = st.file_uploader(
-    "Upload CSV or ZIP (containing CSV)", type=["csv", "zip"], key=f"upload_{nonce}"
+    "Upload CSV or ZIP (containing CSV)",
+    type=["csv", "parquet", "zip"],
+    key=f"upload_{nonce}",
 )
 
 

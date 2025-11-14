@@ -12,8 +12,6 @@ from typing import List, Optional
 import pandas as pd
 import numpy as np
 import os
-import tempfile
-import zipfile
 from pathlib import Path
 from storage.duck import (
     ingest_file,
@@ -120,61 +118,33 @@ async def upload_dataset(file: UploadFile = File(...)):
     """
     try:
         # Validate file type
-        if not file.filename.lower().endswith((".csv", ".zip")):
+        if not file.filename.lower().endswith((".csv", ".parquet")):
             raise HTTPException(
                 status_code=400, detail="Only CSV and ZIP files are supported"
             )
 
-        # Handle CSV
-        if file.filename.lower().endswith(".csv"):
-            # Generate dataset ID
-            dataset_id = sanitize_id(os.path.splitext(file.filename)[0])
+        # Generate dataset ID
+        dataset_id = sanitize_id(os.path.splitext(file.filename)[0])
+        filename = file.filename.lower()
 
-            csv_path = DATA_PROC / f"{dataset_id}.csv"
-            content = await file.read()
-            with open(csv_path, "wb") as f:
-                f.write(content)
+        file_path = DATA_PROC / f"{dataset_id}{Path(filename).suffix}"
 
-            # Ingest CSV directly into DuckDB
-            table_name, n_rows, n_cols = ingest_file(str(csv_path), dataset_id)
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
 
-            return {
-                "success": True,
-                "dataset_id": dataset_id,
-                "table_name": table_name,
-                "path": str(csv_path),
-                "n_rows": n_rows,
-                "n_cols": n_cols,
-                "message": f"Successfully ingested {file.filename}",
-            }
+        # Ingest CSV directly into DuckDB
+        table_name, n_rows, n_cols = ingest_file(str(file_path), dataset_id)
 
-        # Handle ZIP
-        elif file.filename.lower().endswith(".zip"):
-            # Save ZIP temporarily
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
-                content = await file.read()
-                tmp.write(content)
-                tmp_path = tmp.name
-
-            try:
-                # Extract CSVs from ZIP
-                with zipfile.ZipFile(tmp_path, "r") as zf:
-                    csv_files = [f for f in zf.namelist() if f.lower().endswith(".csv")]
-
-                if not csv_files:
-                    raise HTTPException(
-                        status_code=400, detail="No CSV files found in ZIP"
-                    )
-
-                # Return list of available CSVs
-                return {
-                    "success": True,
-                    "type": "zip",
-                    "csv_files": csv_files,
-                    "message": "ZIP contains multiple CSVs. Use /upload/zip endpoint to select one.",
-                }
-            finally:
-                os.unlink(tmp_path)
+        return {
+            "success": True,
+            "dataset_id": dataset_id,
+            "table_name": table_name,
+            "path": str(file_path),
+            "n_rows": n_rows,
+            "n_cols": n_cols,
+            "message": f"Successfully ingested {file.filename}",
+        }
 
     except pd.errors.ParserError as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse CSV: {str(e)}")
