@@ -89,3 +89,9 @@ Capabilities include:
 ![Architecure](diagrams/diagram.png)
 
 ---
+## Future enhancments
+Scatter plot matrix - numerical columns
+generalized plot matrix - all columns
+strip plot instead of box plot
+
+https://seaborn.pydata.org/examples/horizontal_boxplot.html
