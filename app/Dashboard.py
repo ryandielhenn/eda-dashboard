@@ -372,48 +372,6 @@ body {
     </div>
   </div>
 
-  <!-- Key Features -->
-  <div class="section-header">
-    <h2>Key Features</h2>
-  </div>
-
-  <div class="feature-grid">
-    <div class="feature-card">
-      <div class="feature-title">Fast & Efficient</div>
-      <div class="feature-description">
-        Built on DuckDB for lightning-fast analytical queries on large datasets.
-      </div>
-    </div>
-
-    <div class="feature-card">
-      <div class="feature-title">Beautiful Visualizations</div>
-      <div class="feature-description">
-        Modern, interactive charts and plots powered by industry-standard libraries.
-      </div>
-    </div>
-
-    <div class="feature-card">
-      <div class="feature-title">Deep Insights</div>
-      <div class="feature-description">
-        Comprehensive statistical analysis and automated insight generation.
-      </div>
-    </div>
-  </div>
-
-  <!-- Future Work -->
-  <div class="section-header">
-    <h2>Roadmap</h2>
-  </div>
-
-  <div class="future-work">
-    <h3>Planned Improvements</h3>
-    <ul>
-      <li>Dataset merging functionality for cross-dataset analysis</li>
-      <li>Support for multiple join types (inner, outer, left, right)</li>
-      <li>Migrate from direct database access to existing FastAPI backend</li>
-    </ul>
-  </div>
-
 </div>
 
 <script>
