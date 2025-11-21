@@ -13,6 +13,10 @@ import pandas as pd
 import numpy as np
 import os
 from pathlib import Path
+try:
+    from .routers import zip as zip_router
+except ImportError:  # pragma: no cover - fallback when running as script
+    from routers import zip as zip_router
 from storage.duck import (
     ingest_file,
     list_datasets,
@@ -27,6 +31,7 @@ from storage.duck import (
 )
 
 app = FastAPI(title="EDA Dashboard API", version="1.0.0")
+app.include_router(zip_router.router)
 
 # CORS - Allow Streamlit to talk to FastAPI
 app.add_middleware(

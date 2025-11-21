@@ -3,6 +3,7 @@ import duckdb
 import pathlib
 import atexit
 from threading import Lock
+from typing import List
 
 DB = pathlib.Path("data/duckdb/eda.duckdb")
 DB.parent.mkdir(parents=True, exist_ok=True)
@@ -81,6 +82,60 @@ def ingest_file(file_path: str, dataset_id: str):
                 last_ingested = now();
         """,
             [dataset_id, file_path, n_rows, n_cols],
+        )
+
+    return tbl, n_rows, n_cols
+
+
+def ingest_combined_files(
+    file_paths: List[str], dataset_id: str, source_label: str | None = None
+):
+    """Ingest multiple CSV/Parquet files into a single DuckDB table via UNION BY NAME."""
+    if not file_paths:
+        raise ValueError("No files provided for ingestion")
+
+    init_db()
+    con = connect()
+    tbl = table_name(dataset_id)
+    select_statements = []
+
+    for path in file_paths:
+        escaped = path.replace("'", "''")
+        lower = path.lower()
+        if lower.endswith(".csv") or lower.endswith(".csv.gz"):
+            select_statements.append(
+                f"SELECT * FROM read_csv_auto('{escaped}', sample_size=-1)"
+            )
+        elif lower.endswith(".parquet"):
+            select_statements.append(
+                f"SELECT * FROM read_parquet('{escaped}')"
+            )
+        else:
+            raise ValueError(f"Unsupported file type: {path}")
+
+    combined_select = (
+        select_statements[0]
+        if len(select_statements) == 1
+        else "\nUNION ALL BY NAME\n".join(select_statements)
+    )
+
+    label = source_label or ";".join(file_paths)
+
+    with _lock:
+        con.execute(f"CREATE OR REPLACE TABLE {tbl} AS {combined_select}")
+        n_rows = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
+        n_cols = len(con.execute(f"SELECT * FROM {tbl} LIMIT 0").description or [])
+        con.execute(
+            """
+            INSERT INTO datasets(dataset_id, path, n_rows, n_cols, last_ingested)
+            VALUES (?, ?, ?, ?, now())
+            ON CONFLICT(dataset_id) DO UPDATE SET
+                path = excluded.path,
+                n_rows = excluded.n_rows,
+                n_cols = excluded.n_cols,
+                last_ingested = now();
+        """,
+            [dataset_id, label, n_rows, n_cols],
         )
 
     return tbl, n_rows, n_cols

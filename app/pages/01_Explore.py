@@ -1,4 +1,6 @@
 import os
+from typing import List
+
 import streamlit as st
 import pandas as pd
 import requests
@@ -8,6 +10,8 @@ from config import API_BASE
 
 DATA_PROC = "data/processed"
 os.makedirs(DATA_PROC, exist_ok=True)
+
+ZIP_SUPPORTED_SUFFIXES = (".csv", ".csv.gz", ".parquet")
 
 
 def sanitize_id(name: str) -> str:
@@ -54,8 +58,80 @@ def _upload_to_api(file):
         return None
 
 
+def _upload_zip_to_api(file):
+    """Initialize ZIP upload session via the API."""
+    try:
+        with spinner("Uploading ZIP and extracting..."):
+            files = {
+                "file": (
+                    file.name,
+                    file.getvalue(),
+                    file.type or "application/zip",
+                )
+            }
+            response = requests.post(f"{API_BASE}/upload_zip", files=files)
+
+        if response.status_code != 200:
+            detail = response.json().get("detail", "Unknown error")
+            st.error(f"ZIP upload failed: {detail}")
+            return None
+
+        return response.json()
+    except Exception as e:  # pragma: no cover - user feedback path
+        st.error(f"ZIP upload failed: {e}")
+        return None
+
+
+def _ingest_zip_selection(zip_id: str, selected: List[str], dataset_name: str):
+    payload = {
+        "zip_id": zip_id,
+        "selected_files": selected,
+        "dataset_name": dataset_name,
+    }
+
+    try:
+        with spinner("Ingesting selected files..."):
+            response = requests.post(f"{API_BASE}/ingest_zip_files", json=payload)
+    except Exception as e:  # pragma: no cover - user feedback path
+        st.error(f"ZIP ingestion failed: {e}")
+        return
+
+    try:
+        data = response.json()
+    except Exception:
+        st.error("Unexpected response from API during ZIP ingestion")
+        return
+
+    if response.status_code != 200:
+        st.error(data.get("detail", "ZIP ingestion failed"))
+        return
+
+    table_name = data.get("table_name")
+    dataset_id = data.get("dataset_id")
+    if not table_name and dataset_id:
+        table_name = f"ds_{dataset_id}"
+
+    rows = data.get("rows_loaded", 0)
+    target_label = table_name or (f"ds_{dataset_id}" if dataset_id else "dataset")
+    st.session_state["zip_session"] = None
+    st.session_state.pop("zip_dataset_name", None)
+    st.session_state["uploader_nonce"] = st.session_state.get("uploader_nonce", 0) + 1
+
+    if table_name:
+        st.session_state["dataset_choice"] = table_name
+
+    st.session_state["flash"] = f"Ingested ZIP selection as `{target_label}` with {rows} rows."
+    st.rerun()
+
+
+def _is_supported_zip_file(name: str) -> bool:
+    lower = name.lower()
+    return any(lower.endswith(ext) for ext in ZIP_SUPPORTED_SUFFIXES)
+
+
 if uploaded is not None:
-    if uploaded.name.lower().endswith(".csv"):
+    lower_name = uploaded.name.lower()
+    if lower_name.endswith(".csv") or lower_name.endswith(".parquet"):
         result = _upload_to_api(uploaded)
 
         if result:
@@ -64,7 +140,6 @@ if uploaded is not None:
             n_rows = result["n_rows"]
             n_cols = result["n_cols"]
 
-            # Update session state and rerun
             st.session_state["dataset_choice"] = table_name
             st.session_state["uploader_nonce"] = nonce + 1
             st.session_state["flash"] = (
@@ -72,10 +147,76 @@ if uploaded is not None:
             )
             st.rerun()
 
-    elif uploaded.name.lower().endswith(".zip"):
-        st.warning(
-            "ZIP upload not yet implemented via API. Extract and upload CSV directly."
+    elif lower_name.endswith(".zip"):
+        response = _upload_zip_to_api(uploaded)
+        if response:
+            default_name = sanitize_id(os.path.splitext(uploaded.name)[0])
+            if not default_name:
+                default_name = f"zip_{response['zip_id'][:8]}"
+            st.session_state["zip_session"] = {
+                "zip_id": response["zip_id"],
+                "files": response.get("files", []),
+                "filename": uploaded.name,
+            }
+            st.session_state["zip_dataset_name"] = default_name
+            st.session_state["uploader_nonce"] = nonce + 1
+            st.rerun()
+
+
+zip_session = st.session_state.get("zip_session") or None
+
+if zip_session:
+    st.subheader("ZIP ingestion")
+    st.caption(
+        "Select which files inside the archive should be combined and ingested into DuckDB."
+    )
+
+    files_in_zip = zip_session.get("files", [])
+    supported_files = [f for f in files_in_zip if _is_supported_zip_file(f)]
+    unsupported_files = sorted(set(files_in_zip) - set(supported_files))
+
+    if unsupported_files:
+        st.info(
+            "Unsupported files will be skipped: " + ", ".join(unsupported_files)
         )
+
+    selection_key = f"zip_files_{zip_session['zip_id']}"
+    selected_files = st.multiselect(
+        "Choose files to ingest",
+        options=supported_files,
+        default=supported_files,
+        key=selection_key,
+    )
+
+    if not supported_files:
+        st.error("No supported files available in this ZIP archive. Please upload another ZIP or discard this session.")
+
+    dataset_default = st.session_state.get("zip_dataset_name", "")
+    dataset_name = st.text_input(
+        "Dataset name",
+        value=dataset_default,
+        key=f"zip_dataset_name_{zip_session['zip_id']}",
+    )
+    st.session_state["zip_dataset_name"] = dataset_name
+
+    cols = st.columns([1, 1])
+    with cols[0]:
+        ingest_disabled = not selected_files
+        if st.button(
+            "Ingest selected files",
+            disabled=ingest_disabled,
+            key=f"ingest_zip_{zip_session['zip_id']}",
+        ):
+            if not selected_files:
+                st.warning("Please pick at least one file to ingest.")
+            else:
+                _ingest_zip_selection(zip_session["zip_id"], selected_files, dataset_name)
+
+    with cols[1]:
+        if st.button("Discard ZIP upload", key=f"clear_zip_{zip_session['zip_id']}"):
+            st.session_state["zip_session"] = None
+            st.session_state.pop("zip_dataset_name", None)
+            st.rerun()
 
 # ───────────────────────────────
 # Datasets known to API
