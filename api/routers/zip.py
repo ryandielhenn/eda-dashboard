@@ -128,7 +128,7 @@ def _cleanup_session(zip_id: str) -> None:
         shutil.rmtree(base_dir, ignore_errors=True)
 
 
-@router.post("/upload_zip")
+@router.post("/upload_zip", tags=["Dataset Upload"])
 async def upload_zip(file: UploadFile = File(...)):
     if not file.filename or not file.filename.lower().endswith(".zip"):
         raise HTTPException(status_code=400, detail="Only ZIP files are supported")
@@ -201,7 +201,7 @@ async def upload_zip(file: UploadFile = File(...)):
     }
 
 
-@router.post("/ingest_zip_contents")
+@router.post("/ingest_zip_contents", tags=["Dataset Upload"])
 def ingest_zip_contents(request: ZipIngestRequest):
     session = _get_session(request.zip_id)
     selected = request.selected_files
