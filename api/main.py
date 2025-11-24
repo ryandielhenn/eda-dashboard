@@ -13,6 +13,7 @@ import pandas as pd
 import numpy as np
 import os
 from pathlib import Path
+
 try:
     from .routers import zip as zip_router
 except ImportError:  # pragma: no cover - fallback when running as script

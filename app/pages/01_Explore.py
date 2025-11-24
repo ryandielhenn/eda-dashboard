@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import List
 
 import streamlit as st
@@ -91,7 +92,7 @@ def _ingest_zip_selection(zip_id: str, selected: List[str], dataset_name: str):
 
     try:
         with spinner("Ingesting selected files..."):
-            response = requests.post(f"{API_BASE}/ingest_zip_files", json=payload)
+            response = requests.post(f"{API_BASE}/ingest_zip_contents", json=payload)
     except Exception as e:  # pragma: no cover - user feedback path
         st.error(f"ZIP ingestion failed: {e}")
         return
@@ -120,18 +121,16 @@ def _ingest_zip_selection(zip_id: str, selected: List[str], dataset_name: str):
     if table_name:
         st.session_state["dataset_choice"] = table_name
 
-    st.session_state["flash"] = f"Ingested ZIP selection as `{target_label}` with {rows} rows."
+    st.session_state["flash"] = (
+        f"Ingested ZIP selection as `{target_label}` with {rows} rows."
+    )
     st.rerun()
 
 
-def _is_supported_zip_file(name: str) -> bool:
-    lower = name.lower()
-    return any(lower.endswith(ext) for ext in ZIP_SUPPORTED_SUFFIXES)
-
-
 if uploaded is not None:
-    lower_name = uploaded.name.lower()
-    if lower_name.endswith(".csv") or lower_name.endswith(".parquet"):
+    uploaded_path = Path(uploaded.name)
+    suffix = uploaded_path.suffix.lower()
+    if suffix in {".csv", ".parquet"}:
         result = _upload_to_api(uploaded)
 
         if result:
@@ -147,7 +146,7 @@ if uploaded is not None:
             )
             st.rerun()
 
-    elif lower_name.endswith(".zip"):
+    elif suffix in {".zip"}:
         response = _upload_zip_to_api(uploaded)
         if response:
             default_name = sanitize_id(os.path.splitext(uploaded.name)[0])
@@ -156,6 +155,7 @@ if uploaded is not None:
             st.session_state["zip_session"] = {
                 "zip_id": response["zip_id"],
                 "files": response.get("files", []),
+                "invalid_suffix_counts": response.get("invalid_suffix_counts", {}),
                 "filename": uploaded.name,
             }
             st.session_state["zip_dataset_name"] = default_name
@@ -172,24 +172,30 @@ if zip_session:
     )
 
     files_in_zip = zip_session.get("files", [])
-    supported_files = [f for f in files_in_zip if _is_supported_zip_file(f)]
-    unsupported_files = sorted(set(files_in_zip) - set(supported_files))
 
-    if unsupported_files:
-        st.info(
-            "Unsupported files will be skipped: " + ", ".join(unsupported_files)
-        )
+    # Display invalid suffix counts if any
+    invalid_suffix_counts = zip_session.get("invalid_suffix_counts", {})
+    if invalid_suffix_counts:
+        # Format the counts nicely
+        count_parts = [
+            f"Found {count} {suffix} files"
+            for suffix, count in sorted(invalid_suffix_counts.items())
+        ]
+        count_str = ", ".join(count_parts)
+        st.info(f"Unsupported files will be skipped: {count_str}")
 
     selection_key = f"zip_files_{zip_session['zip_id']}"
     selected_files = st.multiselect(
         "Choose files to ingest",
-        options=supported_files,
-        default=supported_files,
+        options=files_in_zip,
+        default=files_in_zip,
         key=selection_key,
     )
 
-    if not supported_files:
-        st.error("No supported files available in this ZIP archive. Please upload another ZIP or discard this session.")
+    if not files_in_zip:
+        st.error(
+            "No supported files available in this ZIP archive. Please upload another ZIP or discard this session."
+        )
 
     dataset_default = st.session_state.get("zip_dataset_name", "")
     dataset_name = st.text_input(
@@ -210,7 +216,9 @@ if zip_session:
             if not selected_files:
                 st.warning("Please pick at least one file to ingest.")
             else:
-                _ingest_zip_selection(zip_session["zip_id"], selected_files, dataset_name)
+                _ingest_zip_selection(
+                    zip_session["zip_id"], selected_files, dataset_name
+                )
 
     with cols[1]:
         if st.button("Discard ZIP upload", key=f"clear_zip_{zip_session['zip_id']}"):

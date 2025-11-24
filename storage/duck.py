@@ -107,9 +107,7 @@ def ingest_combined_files(
                 f"SELECT * FROM read_csv_auto('{escaped}', sample_size=-1)"
             )
         elif lower.endswith(".parquet"):
-            select_statements.append(
-                f"SELECT * FROM read_parquet('{escaped}')"
-            )
+            select_statements.append(f"SELECT * FROM read_parquet('{escaped}')")
         else:
             raise ValueError(f"Unsupported file type: {path}")
 

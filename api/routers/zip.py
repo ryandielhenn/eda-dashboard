@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import tempfile
 import time
@@ -9,7 +10,7 @@ import uuid
 import zipfile
 from pathlib import Path, PurePosixPath
 from threading import Lock
-from typing import Dict, List
+from typing import Counter, Dict, List
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
@@ -111,7 +112,6 @@ def _store_session(zip_id: str, payload: Dict[str, object]) -> None:
 
 def _get_session(zip_id: str) -> Dict[str, object]:
     with _session_lock:
-        _prune_sessions()
         session = _zip_sessions.get(zip_id)
     if not session:
         raise HTTPException(status_code=404, detail="ZIP session not found")
@@ -161,11 +161,8 @@ async def upload_zip(file: UploadFile = File(...)):
     finally:
         archive_path.unlink(missing_ok=True)
 
-    if not files_map:
-        shutil.rmtree(base_dir, ignore_errors=True)
-        raise HTTPException(status_code=400, detail="ZIP archive contains no files")
-
     valid_files = [name for name in files_map if _is_supported(name)]
+
     if not valid_files:
         shutil.rmtree(base_dir, ignore_errors=True)
         raise HTTPException(
@@ -173,8 +170,18 @@ async def upload_zip(file: UploadFile = File(...)):
             detail="ZIP archive must include CSV, CSV.GZ, or Parquet files",
         )
 
+    # Count invalid files by suffix
+    invalid_files = [name for name in files_map if not _is_supported(name)]
+    invalid_suffix_counts = {}
+    for filename in invalid_files:
+        # Get the file extension (e.g., ".txt", ".jpg")
+        suffix = Path(filename).suffix.lower() or "(no extension)"
+        invalid_suffix_counts[suffix] = invalid_suffix_counts.get(suffix, 0) + 1
+
     zip_id = str(uuid.uuid4())
-    dataset_hint = _sanitize_dataset_name(Path(original_name).stem) or f"zip_{zip_id[:8]}"
+    dataset_hint = (
+        _sanitize_dataset_name(Path(original_name).stem) or f"zip_{zip_id[:8]}"
+    )
 
     _store_session(
         zip_id,
@@ -187,16 +194,22 @@ async def upload_zip(file: UploadFile = File(...)):
         },
     )
 
-    return {"zip_id": zip_id, "files": sorted(files_map.keys())}
+    return {
+        "zip_id": zip_id,
+        "files": sorted(valid_files),
+        "invalid_suffix_counts": invalid_suffix_counts,
+    }
 
 
-@router.post("/ingest_zip_files")
-def ingest_zip_files(request: ZipIngestRequest):
+@router.post("/ingest_zip_contents")
+def ingest_zip_contents(request: ZipIngestRequest):
     session = _get_session(request.zip_id)
     selected = request.selected_files
 
     if not selected:
-        raise HTTPException(status_code=400, detail="At least one file must be selected")
+        raise HTTPException(
+            status_code=400, detail="At least one file must be selected"
+        )
 
     available_files: Dict[str, str] = session["files"]
     missing = [name for name in selected if name not in available_files]
@@ -206,11 +219,20 @@ def ingest_zip_files(request: ZipIngestRequest):
             detail=f"Files not found in ZIP: {', '.join(missing)}",
         )
 
-    invalid = [name for name in selected if not _is_supported(name)]
-    if invalid:
+    invalid_counts = Counter(
+        os.path.splitext(name)[1].lower()
+        for name in selected
+        if not _is_supported(name)
+    )
+    invalid_counts.pop("", None)
+
+    if invalid_counts:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file types selected: {', '.join(invalid)}",
+            detail=(
+                "Unsupported file types selected: "
+                + ", ".join(f"{ext} ({count})" for ext, count in invalid_counts.items())
+            ),
         )
 
     file_paths = []
@@ -218,7 +240,9 @@ def ingest_zip_files(request: ZipIngestRequest):
     for name in selected:
         path = Path(available_files[name])
         if not path.exists():
-            raise HTTPException(status_code=400, detail=f"File missing on server: {name}")
+            raise HTTPException(
+                status_code=400, detail=f"File missing on server: {name}"
+            )
         if path.stat().st_size == 0:
             empty_files.append(name)
         file_paths.append(str(path))
@@ -243,7 +267,9 @@ def ingest_zip_files(request: ZipIngestRequest):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
-        raise HTTPException(status_code=500, detail=f"Failed to ingest files: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Failed to ingest files: {exc}"
+        ) from exc
     finally:
         _cleanup_session(request.zip_id)
 
