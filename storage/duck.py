@@ -69,7 +69,8 @@ def ingest_file(file_path: str, dataset_id: str):
                 f"CREATE OR REPLACE TABLE {tbl} AS SELECT * FROM read_parquet('{file_path}')"
             )
 
-        n_rows = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
+        n_rows = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()
+        n_rows = n_rows[0] if n_rows else 0
         n_cols = len(con.execute(f"SELECT * FROM {tbl} LIMIT 0").description or [])
         con.execute(
             """
@@ -121,7 +122,8 @@ def ingest_combined_files(
 
     with _lock:
         con.execute(f"CREATE OR REPLACE TABLE {tbl} AS {combined_select}")
-        n_rows = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
+        n_rows = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()
+        n_rows = n_rows[0] if n_rows else 0
         n_cols = len(con.execute(f"SELECT * FROM {tbl} LIMIT 0").description or [])
         con.execute(
             """
@@ -211,7 +213,7 @@ def get_numeric_histogram(table_name, col, bins, sample_size=100000):
     """
     ).fetchone()
 
-    min_val, max_val, total_count = stats
+    min_val, max_val, total_count = stats if stats else (None, None, 0)
     if min_val is None or max_val is None or bins <= 0:
         return None, None
 
@@ -241,7 +243,11 @@ def get_numeric_histogram(table_name, col, bins, sample_size=100000):
     """
     ).df()
 
-    return hist_data, sample_data
+    return (
+        (hist_data, sample_data)
+        if hist_data is not None and sample_data is not None
+        else (None, None)
+    )
 
 
 def get_value_counts(table_name, col, top_k):
@@ -291,8 +297,6 @@ def get_numeric_bias_metrics(table_name: str, col: str, bins: int) -> dict | Non
         (
             total_rows,
             non_null_count,
-            mean_val,
-            std_val,
             skew_val,
             q1,
             q3,
@@ -316,7 +320,9 @@ def get_numeric_bias_metrics(table_name: str, col: str, bins: int) -> dict | Non
                 WHERE "{col}" IS NOT NULL 
                   AND ("{col}" < {lower_bound} OR "{col}" > {upper_bound})
             """
-            outlier_count = con.execute(outlier_query).fetchone()[0]
+            result = con.execute(outlier_query).fetchone()
+
+            outlier_count = result[0] if result else 0
             outlier_frac = outlier_count / non_null_count if non_null_count > 0 else 0.0
         else:
             outlier_frac = 0.0
@@ -439,9 +445,9 @@ def get_categorical_bias_metrics(table_name: str, col: str) -> dict | None:
                 COUNT(*) as observed_k
             FROM value_shares
         """
-        entropy_result = con.execute(entropy_query).fetchone()
-        entropy = float(entropy_result[0]) if entropy_result[0] else 0.0
-        observed_k = int(entropy_result[1])
+        result = con.execute(entropy_query).fetchone()
+        entropy = float(result[0]) if result else 0.0
+        observed_k = int(result[1]) if result else 0
 
     # Processing outside lock (no DB access)
     shares = result_df["share"].values

@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import APIRouter, HTTPException
 import pandas as pd
 import numpy as np
@@ -34,9 +35,9 @@ def get_correlation_matrix(dataset_id: str):
             "REAL",
         ]
 
-        num_cols = columns_info[columns_info["column_type"].isin(numeric_types)][
-            "column_name"
-        ].tolist()
+        num_cols: List[str] = columns_info[
+            columns_info["column_type"].isin(numeric_types)
+        ]["column_name"].tolist()
 
         if len(num_cols) < 2:
             raise HTTPException(
@@ -58,7 +59,9 @@ def get_correlation_matrix(dataset_id: str):
         corr_results = con.execute(query).df()
 
         # Reconstruct symmetric correlation matrix
-        corr = pd.DataFrame(np.eye(len(num_cols)), index=num_cols, columns=num_cols)
+        corr = pd.DataFrame(
+            np.eye(len(num_cols)), index=pd.Index(num_cols), columns=pd.Index(num_cols)
+        )
 
         for col in num_cols:
             corr.loc[col, col] = 1.0

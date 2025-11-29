@@ -16,7 +16,7 @@ def compute_fairness_metrics(
     target_column: str,
     threshold: float,
     comparison_operator: str = Query(default=">", regex="^(>|<=)$"),
-    sensitive_attribute: str = None,
+    sensitive_attribute: Optional[str] = None,
 ):
     """
     Compute demographic parity for fairness analysis
@@ -46,7 +46,10 @@ def compute_fairness_metrics(
                 FROM {table_name}
             """
             result = con.execute(overall_query).fetchone()
-            return {"success": True, "overall_selection_rate": float(result[0])}
+            return {
+                "success": True,
+                "overall_selection_rate": float(result[0] if result else 0),
+            }
 
         # Compute fairness metrics using SQL aggregation (no full table load)
         fairness_query = f"""

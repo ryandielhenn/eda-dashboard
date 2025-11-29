@@ -13,7 +13,9 @@ router = APIRouter()
 # ────────────────────────────────────────────────────────────────────────────────
 # Distribution and Bias Endpoints
 # ────────────────────────────────────────────────────────────────────────────────
-@router.get("/datasets/{dataset_id}/distributions/numeric", tags=["Distribution Methods"])
+@router.get(
+    "/datasets/{dataset_id}/distributions/numeric", tags=["Distribution Methods"]
+)
 def get_numeric_distribution(
     dataset_id: str,
     column: str,
@@ -27,7 +29,7 @@ def get_numeric_distribution(
             table_name, column, bins, sample_size
         )
 
-        if hist_data is None:
+        if hist_data is None or sample_data is None:
             raise HTTPException(
                 status_code=404, detail="No data available for this column"
             )
@@ -46,7 +48,9 @@ def get_numeric_distribution(
         )
 
 
-@router.get("/datasets/{dataset_id}/distributions/categorical", tags=["Distribution Methods"])
+@router.get(
+    "/datasets/{dataset_id}/distributions/categorical", tags=["Distribution Methods"]
+)
 def get_categorical_distribution(
     dataset_id: str, column: str, top_k: int = Query(default=20, ge=5, le=50)
 ):
