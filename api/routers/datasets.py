@@ -1,11 +1,9 @@
 from __future__ import annotations
-
 import os
-from pathlib import Path
 import pandas as pd
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
-
+from pathlib import Path
 from storage.duck import get_schema, ingest_file, list_datasets, sql
 
 router = APIRouter()
@@ -34,15 +32,17 @@ async def upload_dataset(file: UploadFile = File(...)):
     Returns the ingested dataset information
     """
     try:
+        # Validate file in request
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="Filename missing or invalid")
         # Validate file type
-        if not file.filename.lower().endswith((".csv", ".parquet")):
+        filename = file.filename.lower()
+        if not filename.endswith((".csv", ".parquet")):
             raise HTTPException(
                 status_code=400, detail="Only CSV and ZIP files are supported"
             )
-
         # Generate dataset ID
         dataset_id = sanitize_id(os.path.splitext(file.filename)[0])
-        filename = file.filename.lower()
 
         file_path = DATA_PROC / f"{dataset_id}{Path(filename).suffix}"
 

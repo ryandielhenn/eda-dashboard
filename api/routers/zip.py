@@ -38,7 +38,7 @@ def _is_supported(filename: str) -> bool:
     return any(lower.endswith(suffix) for suffix in SUPPORTED_SUFFIXES)
 
 
-def _sanitize_dataset_name(name: str | None) -> str:
+def _sanitize_dataset_name(name: str) -> str:
     if not name:
         return ""
     sanitized = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in name)
