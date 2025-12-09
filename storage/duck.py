@@ -276,8 +276,6 @@ def get_numeric_bias_metrics(table_name: str, col: str, bins: int) -> dict | Non
                 SELECT 
                     COUNT(*) as total_rows,
                     COUNT("{col}") as non_null_count,
-                    AVG("{col}") as mean_val,
-                    STDDEV("{col}") as std_val,
                     SKEWNESS("{col}") as skew_val,
                     PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY "{col}") as q1,
                     PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY "{col}") as q3,
